@@ -1,5 +1,9 @@
 package com.unipi.database.graph.graphNodes;
 
+/*
+Classe che rappresenta un nodo del garfo. Senza questa classe, dovrei creare classi ausiliarie che implementano
+il tipo Node (UUID implements Node, String implements Node ecc)
+ */
 public class GraphNode<T> implements Node {
     private T value;
 

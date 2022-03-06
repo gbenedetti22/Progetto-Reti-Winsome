@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 import com.unipi.database.graph.graphNodes.GraphNode;
 import com.unipi.database.graph.graphNodes.GroupNode;
-import com.unipi.database.WinsomeDatabase;
+import com.unipi.database.Database;
 import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Like;
 import com.unipi.database.tables.Post;
@@ -19,20 +19,20 @@ import java.util.UUID;
 
 public class GraphLoader {
     private Gson gson;
-    private WinsomeDatabase db;
+    private Database db;
     private WinsomeGraph graph;
     private GroupNode newEntryGroup;
 
-    public GraphLoader(WinsomeDatabase db, WinsomeGraph graph) {
+    public GraphLoader(Database db, WinsomeGraph graph) {
         this.db = db;
         this.graph = graph;
 
-        gson = new GsonBuilder().setPrettyPrinting().setDateFormat("dd/MM/yy - hh:mm:ss").create();
+        gson = new GsonBuilder().setPrettyPrinting().setDateFormat(Database.getDateFormat().toString()).create();
         newEntryGroup = new GroupNode("NEW ENTRY", null);
     }
 
     public void loadGraph() throws IOException {
-        File dbFolder = new File("graphDB");
+        File dbFolder = new File(Database.getName());
         if (!dbFolder.exists()) {
             if (!dbFolder.mkdir()) {
                 System.err.println("Impossibile creare la cartella del WinsomeDatabase");
@@ -221,7 +221,7 @@ public class GraphLoader {
     }
 
     private void loadRewins() {
-        String rewinsFile = "graphDB" + File.separator + "rewins";
+        String rewinsFile = Database.getName() + File.separator + "rewins";
 
         File f = new File(rewinsFile);
         if (!f.exists()) return;
@@ -255,6 +255,6 @@ public class GraphLoader {
     }
 
     private String jsonPathOf(String filename) {
-        return "graphDB" + File.separator + "jsons" + File.separator + filename + ".json";
+        return Database.getName() + File.separator + "jsons" + File.separator + filename + ".json";
     }
 }

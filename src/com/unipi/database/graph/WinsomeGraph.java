@@ -3,11 +3,9 @@ package com.unipi.database.graph;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.unipi.database.Database;
 import com.unipi.database.graph.graphNodes.GroupNode;
 import com.unipi.database.graph.graphNodes.Node;
-import com.unipi.database.WinsomeDatabase;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,17 +15,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class WinsomeGraph {
     private MutableGraph<Node> graph;
     private ReentrantReadWriteLock rwlock;
-    private WinsomeDatabase db;
-    private Gson gson;
     private GroupNode newEntryGroup;
-    private GraphLoader loader;
 
-    public WinsomeGraph(WinsomeDatabase db) {
+    public WinsomeGraph(Database db) {
         graph = GraphBuilder.undirected().allowsSelfLoops(false).build();
         rwlock = new ReentrantReadWriteLock();
         newEntryGroup = new GroupNode("NEW ENTRY", null);
-        gson = new GsonBuilder().setPrettyPrinting().setDateFormat("dd/MM/yy - hh:mm:ss").create();
-        this.db = db;
 
         File dbFolder = new File("graphDB");
         if (!dbFolder.exists()) {
@@ -36,10 +29,9 @@ public class WinsomeGraph {
                 System.exit(-1);
             }
         }
-        loader = new GraphLoader(db, this);
+        GraphLoader loader = new GraphLoader(db, this);
         try {
             loader.loadGraph();
-//            loadGraph();
         } catch (IOException e) {
             e.printStackTrace();
         }

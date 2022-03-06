@@ -1,5 +1,6 @@
 package com.unipi.database.tables;
 
+import com.unipi.utility.common.SimplePost;
 import com.unipi.database.graph.graphNodes.GroupNode;
 
 import java.text.SimpleDateFormat;
@@ -14,7 +15,7 @@ public class Post implements Comparable<Post> {
 
         public DatePair() {
             dateD = new Date();
-            dateS = getDateFormat().format(dateD);
+            dateS = new SimpleDateFormat("dd/MM/yy - hh:mm:ss").format(dateD);
         }
 
         public String toString(){
@@ -30,29 +31,19 @@ public class Post implements Comparable<Post> {
     private String author;
     private String title;
     private String content;
-    private String rewin;
     private DatePair date;
     private transient GroupNode comments;
     private transient GroupNode likes;
     private transient long linePosition;
 
-    public Post(String author, String title, String content, String rewin) {
+    public Post(String author, String title, String content) {
         this.author = author;
         this.title = title;
         this.content = content;
-        this.rewin = rewin;
 
         id = UUID.randomUUID();
         date = new DatePair();
         linePosition = -1;
-    }
-
-    public Post(String author, String title, String content) {
-        this(author, title, content, null);
-    }
-
-    public static SimpleDateFormat getDateFormat(){
-        return new SimpleDateFormat("dd/MM/yy - hh:mm:ss");
     }
 
     public UUID getId() {
@@ -69,10 +60,6 @@ public class Post implements Comparable<Post> {
 
     public String getContent() {
         return content;
-    }
-
-    public String getRewin() {
-        return rewin;
     }
 
     public DatePair date(){
@@ -116,8 +103,7 @@ public class Post implements Comparable<Post> {
     @Override
     public String toString() {
         return "Post {" +
-                "id = " + id +
-                ", author='" + author + '\'' +
+                "author='" + author + '\'' +
                 ", title='" + title + '\'' +
                 ", content='" + content + '\'' +
                 '}';
@@ -134,5 +120,9 @@ public class Post implements Comparable<Post> {
     @Override
     public int hashCode() {
         return Objects.hash(id, author, title, content);
+    }
+
+    public SimplePost toSimplePost(){
+        return new SimplePost(id.toString(), author, title, content, date.toDate());
     }
 }

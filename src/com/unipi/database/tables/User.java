@@ -35,20 +35,20 @@ public class User {
         return Collections.unmodifiableList(tags);
     }
 
-    public void addFollow(String username){
-        following.add(username);
+    public boolean addFollow(String username){
+        return following.add(username);
     }
 
-    public void addFollowers(String username){
-        followers.add(username);
+    public boolean addFollowers(String username){
+        return followers.add(username);
     }
 
-    public void removeFollow(String username){
-        following.remove(username);
+    public boolean removeFollow(String username){
+        return following.remove(username);
     }
 
-    public void removeFollowers(String username){
-        followers.remove(username);
+    public boolean removeFollowers(String username){
+        return followers.remove(username);
     }
 
     public Set<String> getFollowing() {

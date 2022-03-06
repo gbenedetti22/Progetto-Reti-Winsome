@@ -1,10 +1,13 @@
 package com.unipi.database.tables;
 
+import com.unipi.database.Database;
+
+import java.text.ParseException;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
 
-public class Comment {
+public class Comment implements Comparable<Comment>{
     private final UUID idComment;
     private final UUID idPost;
     private final String author;
@@ -16,7 +19,7 @@ public class Comment {
         this.idPost = idPost;
         this.author = author;
         this.content = content;
-        this.date = Post.getDateFormat().format(new Date());
+        this.date = Database.getDateFormat().toSimpleDateFormat().format(new Date());
 
         this.idComment = UUID.randomUUID();
         linePosition = -1;
@@ -70,5 +73,19 @@ public class Comment {
     @Override
     public int hashCode() {
         return Objects.hash(idComment, idPost, author, date, content);
+    }
+
+    @Override
+    public int compareTo(Comment o) {
+        try {
+            Date d1 = Database.getDateFormat().toSimpleDateFormat().parse(date);
+            Date d2 = Database.getDateFormat().toSimpleDateFormat().parse(o.getDate());
+
+            return d1.compareTo(d2);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return -1;
     }
 }
