@@ -1,6 +1,8 @@
-package com.unipi.utility.common;
+package com.unipi.common;
 
 import java.io.Serializable;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Objects;
 
@@ -9,10 +11,10 @@ public class SimplePost implements Comparable<SimplePost>, Serializable {
     private String author;
     private String title;
     private String content;
-    private Date date;
+    private String date;
     private String rewin;
 
-    public SimplePost(String id, String author, String title, String content, Date date) {
+    public SimplePost(String id, String author, String title, String content, String date) {
         this.id = id;
         this.author = author;
         this.title = title;
@@ -47,7 +49,7 @@ public class SimplePost implements Comparable<SimplePost>, Serializable {
         return content;
     }
 
-    public Date getDate() {
+    public String getDate() {
         return date;
     }
 
@@ -57,6 +59,10 @@ public class SimplePost implements Comparable<SimplePost>, Serializable {
 
     public void setRewin(String rewin) {
         this.rewin = rewin;
+    }
+
+    public boolean isRewinned() {
+        return rewin != null;
     }
 
     @Override
@@ -74,9 +80,18 @@ public class SimplePost implements Comparable<SimplePost>, Serializable {
 
     @Override
     public int compareTo(SimplePost o) {
-        int comparison = this.date.compareTo(o.getDate());
+        SimpleDateFormat format = new SimpleDateFormat("dd/MM/yy - hh:mm:ss");
+        try {
+            Date d1 = format.parse(date);
+            Date d2 = format.parse(o.getDate());
+            int compare = d1.compareTo(d2);
 
-        return comparison == 0 ? 1 : comparison;
+            return compare == 0 ? 1 : compare;
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return -1;
     }
 
     @Override
@@ -85,7 +100,7 @@ public class SimplePost implements Comparable<SimplePost>, Serializable {
                 "author='" + author + '\'' +
                 ", title='" + title + '\'' +
                 ", content='" + content + '\'' +
-                (rewin != null ? ", rewin='" + rewin + '\'' : "NOT REWINNED") +
+                (rewin != null ? ", rewin='" + rewin + '\'' : ", NOT REWINNED") +
                 '}';
     }
 }

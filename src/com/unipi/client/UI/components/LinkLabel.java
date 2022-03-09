@@ -12,21 +12,15 @@ public class LinkLabel extends JLabel {
     private Runnable clickAction;
 
     public LinkLabel(String text){
-        setMyAction(ACTIONS.NONE, text);
-
+        super(text);
         setAlignmentX(LEFT_ALIGNMENT);
         setFont(new Font("Arial", Font.PLAIN, 15));
         setForeground(Color.BLUE);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
-    public LinkLabel(){
-        this("");
-    }
-
     public LinkLabel(String text, int alignment){
         super(text, alignment);
-        setMyAction(ACTIONS.NONE, text);
         setFont(new Font("Arial", Font.PLAIN, 15));
         setForeground(Color.BLUE);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -73,12 +67,35 @@ public class LinkLabel extends JLabel {
         this.clickAction = runnable;
     }
 
-    public void setMyAction(ACTIONS action, String text) {
-        if(!text.startsWith("<html>"))
-            text = String.format("<html><u>%s</u></html>", text);
+    public MouseListener addOnMouseClick(Runnable runnable) {
+        MouseListener listener = new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                runnable.run();
+            }
 
-        myAction = action;
-        setText(text);
+            @Override
+            public void mousePressed(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+
+            }
+        };
+        addMouseListener(listener);
+        return listener;
     }
 
 }

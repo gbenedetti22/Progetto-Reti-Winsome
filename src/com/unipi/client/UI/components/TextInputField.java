@@ -1,5 +1,7 @@
 package com.unipi.client.UI.components;
 
+import com.unipi.common.Console;
+
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -11,25 +13,27 @@ public class TextInputField extends JTextField {
     private boolean insertedText = false;
     private String placeholder;
 
-    public TextInputField(String text) {
-        super(text);
+    public TextInputField(String placeHolder) {
+        super("");
 
         setColumns(20);
         setFont(new Font("Arial", Font.PLAIN, 22));
         init();
+        setPlaceHolder(placeHolder);
     }
 
     public TextInputField() {
         this("");
     }
 
-    public TextInputField(String text, int limit) {
-        super(text);
+    public TextInputField(String placeholder, int limit) {
+        super("");
 
         setColumns(20);
         setFont(new Font("Arial", Font.PLAIN, 22));
         setDocument(new LimitDocument(limit));
         init();
+        setPlaceHolder(placeholder);
     }
 
     private void init(){
@@ -99,6 +103,7 @@ public class TextInputField extends JTextField {
         setText(placeholder);
         setForeground(Color.LIGHT_GRAY);
         insertedText = false;
+        holderSetted = true;
     }
 
     public TextInputField(int limit) {
@@ -106,6 +111,8 @@ public class TextInputField extends JTextField {
     }
 
     public void setPlaceHolder(String placeholder) {
+        if(placeholder.isEmpty()) return;
+
         this.placeholder = placeholder;
         initPlaceholder(placeholder);
     }

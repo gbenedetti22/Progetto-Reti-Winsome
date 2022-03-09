@@ -1,5 +1,6 @@
 package com.unipi.client.UI.pages;
 
+import com.unipi.client.Pages;
 import com.unipi.client.UI.banners.PostBanner;
 import com.unipi.client.UI.components.BlueButton;
 import com.unipi.client.UI.components.LinkLabel;
@@ -24,6 +25,7 @@ public class ProfilePage extends JPanel {
     private String newPostContent;
     private RandomORG random;
     private JLabel usernameLabel;
+    private boolean containsPost = false;
 
     public ProfilePage(String username) {
         super(new BorderLayout());
@@ -97,9 +99,7 @@ public class ProfilePage extends JPanel {
 
         LinkLabel back = new LinkLabel("Home", SwingConstants.LEFT);
         back.setTextSize(16);
-        back.setOnMouseClick(() -> {
-            ActionPipe.performAction(ACTIONS.HOME_ACTION, null);
-        });
+        back.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.SWITCH_PAGE, Pages.HOME_PAGE));
 
         LinkLabel followers = new LinkLabel("I miei Followers", SwingConstants.RIGHT);
         followers.setOnMouseClick(() -> {
@@ -153,6 +153,12 @@ public class ProfilePage extends JPanel {
 
     public void addPost(PostBanner banner){
         postLayout.placeComponent(banner);
+        containsPost = true;
+    }
+    public void removePost(PostBanner banner){
+        postLayout.remove(banner);
+        revalidate();
+        repaint();
     }
 
     public String getNewPostTitle() {
@@ -165,5 +171,9 @@ public class ProfilePage extends JPanel {
 
     public void setUsername(String username) {
         usernameLabel.setText(username);
+    }
+
+    public boolean containsPost() {
+        return containsPost;
     }
 }

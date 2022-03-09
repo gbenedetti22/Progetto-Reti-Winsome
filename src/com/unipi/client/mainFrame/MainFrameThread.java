@@ -2,18 +2,19 @@ package com.unipi.client.mainFrame;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.unipi.client.LocalStorage;
 import com.unipi.client.Pages;
 import com.unipi.client.ServiceManager;
+import com.unipi.client.UI.banners.CommentBanner;
 import com.unipi.client.UI.banners.PostBanner;
 import com.unipi.client.UI.banners.UserBanner;
 import com.unipi.client.UI.pages.*;
+import com.unipi.common.Console;
+import com.unipi.common.SimplePost;
 import com.unipi.server.RMI.FollowersService;
 import com.unipi.server.requestHandler.WSRequest;
 import com.unipi.server.requestHandler.WSResponse;
-import com.unipi.utility.channelsio.ChannelReceiver;
-import com.unipi.utility.channelsio.ChannelSender;
-import com.unipi.utility.common.SimplePost;
 
 import javax.swing.*;
 import java.awt.*;
@@ -25,8 +26,10 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.List;
+import java.util.*;
 
 import static com.unipi.client.mainFrame.ClientProperties.NAMES.*;
 import static com.unipi.server.requestHandler.WSRequest.WS_OPERATIONS;
@@ -35,18 +38,15 @@ public class MainFrameThread extends Thread {
     private final MainFrame frame;
     private final Gson gson;
     private SocketChannel socket;
-    private ArrayList<String> tags;
-    private HomePage home;
-    private ProfilePage profile;
-    private ChannelSender out;
-    private ChannelReceiver in;
     private FollowersService followersService;
     private LocalStorage storage;
     private ServiceManager serviceManager;
+    private HashSet<String> rewinnedPosts;
 
     public MainFrameThread(MainFrame frame) throws IOException, NotBoundException {
         this.frame = frame;
         this.storage = new LocalStorage();
+        this.rewinnedPosts = new HashSet<>();
         setName("Main-Frame-Thread");
 
         HashMap<ClientProperties.NAMES, Object> props = ClientProperties.getValues();
@@ -56,12 +56,10 @@ public class MainFrameThread extends Thread {
         Registry registry = LocateRegistry.getRegistry((String) props.get(RMI_ADDRESS), (int) props.get(RMI_FOLLOW_PORT));
         followersService = (FollowersService) registry.lookup("FOLLOWERS-SERVICE");
 
-        out = new ChannelSender(socket);
-        in = new ChannelReceiver(socket);
         this.serviceManager = new ServiceManager(socket);
         serviceManager.start();
 
-        gson = new Gson();
+        gson = new GsonBuilder().setDateFormat("dd/MM/yy - hh:mm:ss").create();
     }
 
     @Override
@@ -77,37 +75,250 @@ public class MainFrameThread extends Thread {
                 case SWITCH_PAGE -> {
                     if (ActionPipe.getParameter() instanceof JPanel page) {
                         frame.switchPage(page);
+                        if (page instanceof HomePage)
+                            downloadLatestPosts();
                     }
                 }
                 case PUBLISH_ACTION -> performPublishPost();
                 case PROFILE_ACTION -> performViewProfile();
-                case HOME_ACTION -> {
-                }
                 case LOGOUT_ACTION -> {
                 }
-                case FOLLOWERS_PAGE_ACTION -> {
-                }
+                case FOLLOWERS_PAGE_ACTION -> performViewFollowPage();
                 case DISCOVER_ACTION -> performDiscover();
-                case FOLLOW_ACTION -> {
-                }
-                case UNFOLLOW_ACTION -> {
-                }
-                case LIKE_ACTION -> {
-                }
-                case DISLIKE_ACTION -> {
-                }
-                case PUBLISH_COMMENT_ACTION -> {
-                }
-                case DELETE_POST_ACTION -> {
-                }
-                case VIEW_POST_ACTION -> {
-                }
-                case RETWEET_ACTION -> {
-                }
-                case NONE -> {
-                }
+                case FOLLOW_ACTION -> performFollow();
+                case UNFOLLOW_ACTION -> performUnfollow();
+                case LIKE_ACTION -> performLike();
+                case DISLIKE_ACTION -> performDislike();
+                case PUBLISH_COMMENT_ACTION -> performPublishComment();
+                case DELETE_POST_ACTION -> performDeletePost();
+                case VIEW_POST_ACTION -> performViewPost();
+                case RETWEET_ACTION -> performRewin();
                 case CLOSE_ACTION -> {
                 }
+            }
+        }
+    }
+
+    private void performRewin() {
+        if (frame.getCurrentPage() instanceof HomePage) {
+            PostBanner banner = (PostBanner) ActionPipe.getParameter();
+            String id = banner.getID();
+            WSRequest request = new WSRequest(WS_OPERATIONS.REWIN, id);
+            serviceManager.submitRequest(request);
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            banner.setRewinnable(false);
+            PostBanner b = new PostBanner(banner.getAttachedPost(), true);
+            b.setAsRewin(storage.getCurrentUsername());
+            Pages.PROFILE_PAGE.addPost(b);
+            showSuccessMessage("Post rewinnato!");
+        }
+    }
+
+    private void performDislike() {
+        if(frame.getCurrentPage() instanceof PostPage page) {
+            String id = page.getId();
+            WSRequest request = new WSRequest(WS_OPERATIONS.DISLIKE, id);
+            serviceManager.submitRequest(request);
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            page.addDislike();
+        }
+    }
+
+    private void performLike() {
+        if(frame.getCurrentPage() instanceof PostPage page) {
+            String id = page.getId();
+            WSRequest request = new WSRequest(WS_OPERATIONS.LIKE, id);
+            serviceManager.submitRequest(request);
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            page.addLike();
+        }
+    }
+
+    private void performPublishComment() {
+        CommentsPage page = (CommentsPage) ActionPipe.getParameter();
+        String id = page.getPost().getId();
+        String comment = page.getInputText();
+        page.clearField();
+
+        if (comment.isBlank()) {
+            showErrorMessage("Il contenuto del commento non può essere vuoto");
+            return;
+        }
+
+        WSRequest request = new WSRequest(WS_OPERATIONS.COMMENT, id, comment);
+        serviceManager.submitRequest(request);
+        WSResponse response = serviceManager.getResponse();
+        if (response.code() != WSResponse.CODES.OK) {
+            showErrorMessage(response.getBody());
+            return;
+        }
+
+        page.addComment(new CommentBanner(storage.getCurrentUsername(), comment));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void performViewPost() {
+        String id = (String) ActionPipe.getParameter();
+        WSRequest request = new WSRequest(WS_OPERATIONS.GET_POST, id);
+        serviceManager.submitRequest(request);
+        WSResponse response = serviceManager.getResponse();
+        if (response.code() != WSResponse.CODES.OK) {
+            showErrorMessage("Impossibile visualizzare questo Post! Probabilmente è stato cancellato");
+            return;
+        }
+
+        Type type = new TypeToken<Map<String, Object>>() {
+        }.getType();
+        Map<String, Object> map = gson.fromJson(response.getBody(), type);
+
+        String title = (String) map.get("TITLE");
+        String content = (String) map.get("CONTENT");
+        PostPage page = Pages.newPostPage(id, title, content);
+
+        List<Map<String, String>> comments = (List<Map<String, String>>) map.get("COMMENTS");
+        int likes = (int) ((double) map.get("LIKES"));
+        int dislikes = (int) ((double) map.get("DISLIKES"));
+
+        for (Map<String, String> c : comments) {
+            page.addComment(new CommentBanner(c.get("author"), c.get("content")));
+        }
+
+        Console.log(map);
+        page.setLikes(likes);
+        page.setDislikes(dislikes);
+        frame.switchPage(page);
+    }
+
+    private void performViewFollowPage() {
+        FollowersPage page = Pages.FOLLOW_PAGE;
+        for (String follow : storage.getFollowing()) {
+            page.appendBanner(follow, FollowersPage.Type.FOLLOWING);
+        }
+
+        for (String followers : storage.getFollowers()) {
+            page.appendBanner(followers, FollowersPage.Type.FOLLOWING);
+        }
+
+        frame.switchPage(page);
+    }
+
+    private void performDeletePost() {
+        if (frame.getCurrentPage() instanceof ProfilePage profile) {
+            PostBanner clickedBanner = (PostBanner) ActionPipe.getParameter();
+            String id = clickedBanner.getID();
+            WSRequest request;
+            if (clickedBanner.isRewin()) {
+                request = new WSRequest(WS_OPERATIONS.REMOVE_REWIN, id);
+            } else {
+                request = new WSRequest(WS_OPERATIONS.REMOVE_POST, id);
+            }
+
+            serviceManager.submitRequest(request);
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            Console.log(response.getBody());
+            profile.removePost(clickedBanner);
+
+            if(clickedBanner.isRewin()) {
+                PostBanner banner = Pages.HOME_PAGE.getPostBanner(id);
+                if(clickedBanner.getRewin().equals(storage.getCurrentUsername())) {
+                    Pages.HOME_PAGE.removePost(banner);
+                }else {
+                    banner.setRewinnable(true);
+                }
+            }
+            showSuccessMessage("Post eliminato con successo!");
+        }
+    }
+
+    private void performFollow() {
+        if (frame.getCurrentPage() instanceof DiscoverPage) {
+            UserBanner clickedBanner = (UserBanner) ActionPipe.getParameter();
+            String username = clickedBanner.getUsername();
+
+            serviceManager.submitRequest(new WSRequest(WS_OPERATIONS.FOLLOW, username));
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            clickedBanner.setUnfollow();
+            downloadPostOf(username);
+            storage.getFollowing().add(username);
+            return;
+        }
+
+        if (frame.getCurrentPage() instanceof FollowersPage) {
+            String username = (String) ActionPipe.getParameter();
+
+            serviceManager.submitRequest(new WSRequest(WS_OPERATIONS.FOLLOW, username));
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            storage.getFollowing().add(username);
+            downloadPostOf(username);
+        }
+    }
+
+    private void performUnfollow() {
+        if (frame.getCurrentPage() instanceof DiscoverPage) {
+            UserBanner clickedBanner = (UserBanner) ActionPipe.getParameter();
+            String username = clickedBanner.getUsername();
+
+            serviceManager.submitRequest(new WSRequest(WS_OPERATIONS.UNFOLLOW, username));
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            clickedBanner.setFollow();
+            HomePage home = Pages.HOME_PAGE;
+            home.removePostIf(p -> p.getAuthor().equals(username));
+            storage.getFollowing().remove(username);
+            if (!home.containsPosts()) {
+                home.showBackground();
+            }
+        }
+
+        if (frame.getCurrentPage() instanceof FollowersPage) {
+            String username = (String) ActionPipe.getParameter();
+
+            serviceManager.submitRequest(new WSRequest(WS_OPERATIONS.UNFOLLOW, username));
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            HomePage home = Pages.HOME_PAGE;
+            home.removePostIf(p -> p.getAuthor().equals(username));
+            storage.getFollowing().remove(username);
+            if (!home.containsPosts()) {
+                home.showBackground();
             }
         }
     }
@@ -115,12 +326,16 @@ public class MainFrameThread extends Thread {
 
     private void performViewProfile() {
         frame.switchPage(Pages.PROFILE_PAGE);
-        downloadMyPosts();
+
+        if (!Pages.PROFILE_PAGE.containsPost())
+            downloadMyPosts();
     }
 
     private void performRegisterAction() {
         //la registrazione tramite RMI viene fatta internamente
-        RegisterPage page = new RegisterPage();
+        RegisterPage page = Pages.REGISTER_PAGE;
+        page.clearFields();
+
         frame.switchPage(page);
     }
 
@@ -134,6 +349,7 @@ public class MainFrameThread extends Thread {
                 registerToRegistrationService(username);
                 frame.switchPage(Pages.HOME_PAGE);
                 setMyFollowing();
+                downloadMyPosts();
                 downloadPosts();
             }
         }
@@ -144,22 +360,29 @@ public class MainFrameThread extends Thread {
         serviceManager.submitRequest(request);
 
         WSResponse response = serviceManager.getResponse();
-        if(response.status() != WSResponse.S_STATUS.OK) {
+        if (response.code() != WSResponse.CODES.OK) {
             showErrorMessage(response.getBody());
             return;
         }
 
-        Type type = new TypeToken<ArrayList<String>>(){}.getType();
+        Type type = new TypeToken<ArrayList<String>>() {
+        }.getType();
         ArrayList<String> friends = gson.fromJson(response.getBody(), type);
-        System.out.println(friends);
-        
+        Console.log("Discover", friends);
+
         ArrayList<UserBanner> banners = new ArrayList<>();
+        ArrayList<String> following = storage.getFollowing();
+
         for (String s : friends) {
-            banners.add(new UserBanner(s));
+            UserBanner banner = new UserBanner(s);
+            if (following.contains(s))
+                banner.setUnfollow();
+
+            banners.add(banner);
         }
 
-        DiscoverPage page = Pages.newDiscoverPage(banners);
-        frame.switchPage(page);
+        Pages.DISCOVER_PAGE.addAll(banners);
+        frame.switchPage(Pages.DISCOVER_PAGE);
     }
 
     private void registerToRegistrationService(String username) {
@@ -182,15 +405,15 @@ public class MainFrameThread extends Thread {
             WSRequest request = new WSRequest(WS_OPERATIONS.CREATE_POST, title, content);
             serviceManager.submitRequest(request);
             WSResponse response = serviceManager.getResponse();
-            if(response.status() != WSResponse.S_STATUS.OK){
+            if (response.code() != WSResponse.CODES.OK) {
                 showErrorMessage(response.getBody());
                 return;
             }
 
             String json = response.getBody();
             SimplePost post = gson.fromJson(json, SimplePost.class);
-            System.out.println("Creato Post con ID: " + post.getId());
-            page.addPost(new PostBanner(post));
+            Console.log("Creato Post con ID: " + post.getId());
+            page.addPost(new PostBanner(post, true));
             showSuccessMessage("Post creato con successo!");
         }
     }
@@ -214,7 +437,7 @@ public class MainFrameThread extends Thread {
         WSRequest loginRequest = new WSRequest(WSRequest.WS_OPERATIONS.FIND_USER, username, password);
         serviceManager.submitRequest(loginRequest);
         WSResponse response = serviceManager.getResponse();
-        if (response.status() != WSResponse.S_STATUS.OK) {
+        if (response.code() != WSResponse.CODES.OK) {
             showErrorMessage("Credenziali inserite errate");
             return false;
         }
@@ -238,7 +461,7 @@ public class MainFrameThread extends Thread {
         Type type = new TypeToken<ArrayList<String>>() {
         }.getType();
 
-        System.out.println("Follow ricevuti: " + myFollowing);
+        Console.log("Follow ricevuti: " + myFollowing);
 
         ArrayList<String> following = gson.fromJson(myFollowing, type);
         storage.setFollowing(following);
@@ -251,10 +474,23 @@ public class MainFrameThread extends Thread {
             }.getType();
             ArrayList<SimplePost> posts = gson.fromJson(response.getBody(), type);
             HomePage home = Pages.HOME_PAGE;
+            if (home.containsPosts())
+                home.clear();
 
-            System.out.println("Post degli amici: " + posts);
+            Console.log("Post degli amici: " + posts);
             for (SimplePost p : posts) {
-                home.addPost(new PostBanner(p));
+                PostBanner banner = new PostBanner(p);
+                banner.setRewinnable(true);
+                if (p.isRewinned()) {
+                    banner.setAsRewin(p.getRewin());
+                    banner.setRewinnable(false);
+                }
+
+                if(rewinnedPosts.contains(p.getId())) {
+                    banner.setRewinnable(false);
+                }
+
+                home.addPost(banner);
             }
         });
     }
@@ -265,15 +501,116 @@ public class MainFrameThread extends Thread {
             Type type = new TypeToken<ArrayList<SimplePost>>() {
             }.getType();
             ArrayList<SimplePost> posts = gson.fromJson(response.getBody(), type);
-            ProfilePage home = Pages.PROFILE_PAGE;
+            ProfilePage profile = Pages.PROFILE_PAGE;
 
-            System.out.println("Post miei ricevuti: " + posts);
+            Console.log("Post miei ricevuti: " + posts);
             for (SimplePost p : posts) {
                 PostBanner banner = new PostBanner(p);
-                banner.setDeletable();
+                if (p.isRewinned()) {
+                    banner.setAsRewin(storage.getCurrentUsername());
+                    rewinnedPosts.add(p.getId());
+                }
 
-                home.addPost(banner);
+                banner.setDeletable();
+                profile.addPost(banner);
             }
         });
+    }
+
+    private void downloadLatestPosts() {
+        HashMap<String, String> dateMap = getDateMap();
+        if (dateMap == null) return;
+
+        WSRequest request = new WSRequest(WS_OPERATIONS.GET_FRIENDS_POST_FROM_DATE, gson.toJson(dateMap));
+
+        serviceManager.submitRequest(request, response -> {
+            Type type = new TypeToken<ArrayList<SimplePost>>() {
+            }.getType();
+            ArrayList<SimplePost> posts = gson.fromJson(response.getBody(), type);
+            if (posts.isEmpty()) {
+                Console.log("[] (Data)");
+                return;
+            }
+
+            Console.log("Post degli amici: " + posts, "(Data)");
+            List<PostBanner> postBanners = posts.stream().map(simplePost -> {
+                PostBanner banner = new PostBanner(simplePost);
+                if (simplePost.isRewinned()) {
+                    banner.setAsRewin(simplePost.getRewin());
+                    banner.setRewinnable(false);
+                    return banner;
+                }
+
+                if(rewinnedPosts.contains(simplePost.getId())) {
+                    banner.setRewinnable(false);
+                }
+
+                banner.setRewinnable(true);
+                return banner;
+            }).toList();
+
+            HomePage home = Pages.HOME_PAGE;
+            home.addAll(postBanners);
+        });
+    }
+
+    private void downloadPostOf(String username) {
+        HashMap<String, String> dateMap = new HashMap<>();
+        dateMap.put(username, "0");
+        WSRequest request = new WSRequest(WS_OPERATIONS.GET_FRIENDS_POST_FROM_DATE, gson.toJson(dateMap));
+
+        serviceManager.submitRequest(request, response -> {
+            Type type = new TypeToken<ArrayList<SimplePost>>() {
+            }.getType();
+            ArrayList<SimplePost> posts = gson.fromJson(response.getBody(), type);
+            if (posts.isEmpty()) {
+                Console.log("[]");
+                return;
+            }
+            Console.log("Post degli amici: " + posts, username);
+
+            List<PostBanner> postBanners = posts.stream().map(simplePost -> {
+                PostBanner banner = new PostBanner(simplePost);
+                if (simplePost.isRewinned()) {
+                    banner.setAsRewin(simplePost.getRewin());
+                    banner.setRewinnable(false);
+                    return banner;
+                }
+
+                if(rewinnedPosts.contains(simplePost.getId())) {
+                    banner.setRewinnable(false);
+                }
+
+                banner.setRewinnable(true);
+                return banner;
+            }).toList();
+
+            HomePage home = Pages.HOME_PAGE;
+            home.addAll(postBanners);
+        });
+    }
+
+    private HashMap<String, String> getDateMap() {
+        Set<PostBanner> banners = Pages.HOME_PAGE.getBanners();
+        if (banners.isEmpty())
+            return null;
+
+        HashMap<String, String> dateMap = new HashMap<>();
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yy - hh:mm:ss");
+
+        for (PostBanner p : banners) {
+            String previousDate = dateMap.putIfAbsent(p.getAuthor(), p.getDate());
+            if (previousDate != null) {
+                try {
+                    Date d1 = sdf.parse(p.getDate());
+                    Date d2 = sdf.parse(previousDate);
+                    if (d2.before(d1))
+                        dateMap.put(p.getAuthor(), p.getDate());
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return dateMap;
     }
 }

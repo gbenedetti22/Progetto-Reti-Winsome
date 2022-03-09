@@ -8,6 +8,7 @@ public class PasswordField extends JPasswordField {
     private char defaultCharacter = getEchoChar();
     private boolean holderSetted = false;
     private boolean insertedText = false;
+    private String placeholder;
 
     public PasswordField(int limit){
         setColumns(20);
@@ -22,6 +23,7 @@ public class PasswordField extends JPasswordField {
     public void setPlaceHolder(String placeholder){
         initPlaceholder(placeholder);
         holderSetted = true;
+        this.placeholder = placeholder;
     }
 
     public void setOnKeyEnterPressed(Runnable run){
@@ -94,5 +96,15 @@ public class PasswordField extends JPasswordField {
         if(!insertedText) return "";
 
         return new String(getPassword());
+    }
+
+    public void clear(){
+        if(placeholder == null)
+            placeholder = "";
+
+        setText(placeholder);
+        setForeground(Color.LIGHT_GRAY);
+        insertedText = false;
+        holderSetted = true;
     }
 }

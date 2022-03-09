@@ -1,8 +1,5 @@
 package com.unipi.utility.channelsio;
 
-import com.unipi.utility.channelsio.concurrent.ConcurrentChannelReceiver;
-import com.unipi.utility.channelsio.concurrent.ConcurrentReceiverBuilder;
-
 import java.io.IOException;
 
 /**

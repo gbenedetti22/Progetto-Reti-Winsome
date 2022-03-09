@@ -33,12 +33,6 @@ public class GraphLoader {
 
     public void loadGraph() throws IOException {
         File dbFolder = new File(Database.getName());
-        if (!dbFolder.exists()) {
-            if (!dbFolder.mkdir()) {
-                System.err.println("Impossibile creare la cartella del WinsomeDatabase");
-                System.exit(-1);
-            }
-        }
 
         File[] users = dbFolder.listFiles(f -> (!f.getName().equals("rewins") || !f.getName().equals("new_entries")) && !f.isDirectory());
         if (users != null) {

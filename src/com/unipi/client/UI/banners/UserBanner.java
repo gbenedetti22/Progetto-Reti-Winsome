@@ -1,23 +1,29 @@
 package com.unipi.client.UI.banners;
 
 import com.unipi.client.UI.components.LinkLabel;
+import com.unipi.client.mainFrame.ACTIONS;
+import com.unipi.client.mainFrame.ActionPipe;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Objects;
 
 public class UserBanner extends JPanel {
     private JLabel usernameLabel;
     private LinkLabel actionLabel;
+    private ACTIONS currentAction;
 
     public UserBanner(String username) {
         super(new GridLayout(1, 2));
 
+        this.currentAction = ACTIONS.FOLLOW_ACTION;
         this.usernameLabel = new JLabel(username);
         this.usernameLabel.setFont(new Font("Arial", Font.PLAIN, 22));
         usernameLabel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
 
         add(usernameLabel);
         actionLabel = new LinkLabel("Follow");
+        actionLabel.setOnMouseClick(()-> ActionPipe.performAction(currentAction, this));
         actionLabel.setTextSize(22);
 
         setBackground(Color.WHITE);
@@ -30,15 +36,34 @@ public class UserBanner extends JPanel {
     public UserBanner() {
     }
 
-    protected JLabel getActionLabel() {
+    protected LinkLabel getActionLabel() {
         return actionLabel;
     }
 
-    public void setActionLabelText(String text) {
-        this.actionLabel.setText(text);
+    public void setFollow() {
+        currentAction = ACTIONS.FOLLOW_ACTION;
+        actionLabel.setText("Follow");
+    }
+
+    public void setUnfollow() {
+        currentAction = ACTIONS.UNFOLLOW_ACTION;
+        actionLabel.setText("Unfollow");
     }
 
     public String getUsername() {
         return usernameLabel.getText();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserBanner that = (UserBanner) o;
+        return usernameLabel.getText().equals(that.usernameLabel.getText());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(usernameLabel.getText());
     }
 }

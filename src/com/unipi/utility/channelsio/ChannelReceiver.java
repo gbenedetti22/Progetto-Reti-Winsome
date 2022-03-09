@@ -30,7 +30,7 @@ import java.util.HashMap;
  * sono stati costruiti per poter funzionare anche su più canali diversi chiamando il metodo {@link #setChannel(SocketChannel)}<br>
  * <br>
  * Questa classe <u>NON</u> è thread-safe e deve essere usata da <u>UN</u> thread solo.<br>
- * Per l uso su più thread vedere la versione {@link com.unipi.utility.channelsio.concurrent.ConcurrentChannelReceiver}.<br>
+ * Per l uso su più thread vedere la versione {@link ConcurrentChannelReceiver}.<br>
  */
 public class ChannelReceiver implements Receiver {
     // Mappa che permette il salvataggio degli eccessivi dati letti

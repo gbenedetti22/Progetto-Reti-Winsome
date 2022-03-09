@@ -37,6 +37,10 @@ public class ActionPipe {
         obj = param;
     }
 
+    public static void performAction(ACTIONS action){
+        performAction(action, null);
+    }
+
     public static void closeActionPipe(){
         synchronized (key) {
             currentAction = ACTIONS.CLOSE_ACTION;

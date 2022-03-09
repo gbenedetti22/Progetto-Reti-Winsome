@@ -1,15 +1,16 @@
 package com.unipi.database.tables;
 
-import com.unipi.utility.common.SimplePost;
+import com.unipi.common.SimplePost;
 import com.unipi.database.graph.graphNodes.GroupNode;
 
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
 
-public class Post implements Comparable<Post> {
-    public static class DatePair{
+public class Post implements Comparable<Post>, Serializable {
+    public static class DatePair implements Serializable{
         private Date dateD;
         private String dateS;
 
@@ -18,6 +19,7 @@ public class Post implements Comparable<Post> {
             dateS = new SimpleDateFormat("dd/MM/yy - hh:mm:ss").format(dateD);
         }
 
+        @Override
         public String toString(){
             return dateS;
         }
@@ -122,7 +124,7 @@ public class Post implements Comparable<Post> {
         return Objects.hash(id, author, title, content);
     }
 
-    public SimplePost toSimplePost(){
-        return new SimplePost(id.toString(), author, title, content, date.toDate());
+    public SimplePost toSimplePost() {
+        return new SimplePost(id.toString(), author, title, content, date.toString());
     }
 }

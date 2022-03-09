@@ -1,24 +1,33 @@
 package com.unipi.client.UI.pages;
 
 import com.unipi.client.UI.banners.UserBanner;
+import com.unipi.client.UI.components.LinkLabel;
+import com.unipi.client.mainFrame.ACTIONS;
+import com.unipi.client.mainFrame.ActionPipe;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.LinkedHashSet;
 
 public class FollowersPage extends JPanel {
-    public enum Type{
+    public enum Type {
         FOLLOWER,
         FOLLOWING
     }
+
     private final Page left;
     private final Page right;
+    private LinkedHashSet<String> leftComponents;
+    private LinkedHashSet<String> rightComponents;
 
-    public FollowersPage(){
+    public FollowersPage() {
         super(new BorderLayout());
         left = new Page(Type.FOLLOWER);
         right = new Page(Type.FOLLOWING);
+        this.leftComponents = new LinkedHashSet<>();
+        this.rightComponents = new LinkedHashSet<>();
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.add(left, JSplitPane.LEFT);
@@ -26,28 +35,34 @@ public class FollowersPage extends JPanel {
         splitPane.setDividerSize(0);
         splitPane.setResizeWeight(.43);
 
-        JLabel backLabel = new JLabel("<html><u>Indietro</u></html>", SwingConstants.LEFT);
-        backLabel.setFont(new Font("Arial", Font.PLAIN, 22));
-        backLabel.setForeground(Color.BLUE);
-        backLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        backLabel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 0));
+        LinkLabel backLabel = new LinkLabel("Indietro");
+        backLabel.setTextSize(22);
+        backLabel.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.BACKPAGE_ACTION));
 
         add(splitPane);
         add(backLabel, BorderLayout.NORTH);
     }
 
-    public void appendBanner(String name, Type type){
-        if(type == Type.FOLLOWER)
+    public void appendBanner(String name, Type type) {
+        if (type == Type.FOLLOWER) {
+            if (leftComponents.contains(name)) return;
+
             left.addFollowerBanner(name);
-        else
+            leftComponents.add(name);
+        } else {
+            if (rightComponents.contains(name)) return;
+
             right.addFollowerBanner(name);
+            rightComponents.add(name);
+        }
     }
 
     private class Page extends JPanel {
         private final JPanel rootPanel;
         private final Type currentType;
+        private final Component magicComponent = Box.createVerticalGlue();
 
-        public Page(Type type){
+        public Page(Type type) {
             super(new BorderLayout());
 
             this.currentType = type;
@@ -56,13 +71,14 @@ public class FollowersPage extends JPanel {
             followersLabel.setFont(new Font("Arial", Font.PLAIN, 22));
             followersLabel.setOpaque(true);
             followersLabel.setBackground(Color.WHITE);
-            if(type == Type.FOLLOWER)
+            if (type == Type.FOLLOWER)
                 followersLabel.setText("Followers");
             else
                 followersLabel.setText("Seguiti");
 
             rootPanel = new JPanel();
             rootPanel.setLayout(new BoxLayout(rootPanel, BoxLayout.Y_AXIS));
+            rootPanel.add(magicComponent);
             JScrollPane scrollPane = new JScrollPane(rootPanel);
             scrollPane.getVerticalScrollBar().setUnitIncrement(15);
 
@@ -70,20 +86,31 @@ public class FollowersPage extends JPanel {
             add(scrollPane, BorderLayout.CENTER);
         }
 
-        public void removeBanner(JPanel comp){
+        public void removeBanner(PageBanner comp) {
             rootPanel.remove(comp);
         }
 
         public void addFollowerBanner(String name) {
+            rootPanel.remove(magicComponent);
+
             PageBanner pageBanner = new PageBanner(name, currentType);
+            pageBanner.setPreferredSize(new Dimension(100, 65));
 
             rootPanel.add(pageBanner);
+            rootPanel.add(magicComponent);
+        }
+
+        private void addFollowerBanner(PageBanner banner) {
+            rootPanel.remove(magicComponent);
+            rootPanel.add(banner);
+            rootPanel.add(magicComponent);
         }
     }
 
     private class PageBanner extends UserBanner implements MouseListener {
         private Type currentType;
-        private JLabel actionLabel;
+        private LinkLabel actionLabel;
+        private MouseListener currentMouseAction;
 
         public PageBanner(String username, Type type) {
             super(username);
@@ -91,10 +118,10 @@ public class FollowersPage extends JPanel {
             this.currentType = type;
             actionLabel = getActionLabel();
 
-            if(type == Type.FOLLOWER)
-                setAsNewUser();
-            else
+            if (type == Type.FOLLOWER)
                 setAsFollower();
+            else
+                setAsFollowing();
 
             actionLabel.addMouseListener(new PageBanner());
         }
@@ -107,13 +134,21 @@ public class FollowersPage extends JPanel {
             return currentType;
         }
 
-        public void setAsFollower(){
+        public void setAsFollowing() {
             actionLabel.setText("<html><u>Unfollow</u></html>");
+            if (currentMouseAction != null)
+                actionLabel.removeMouseListener(currentMouseAction);
+
+            currentMouseAction = actionLabel.addOnMouseClick(() -> ActionPipe.performAction(ACTIONS.UNFOLLOW_ACTION, getUsername()));
             currentType = Type.FOLLOWING;
         }
 
-        public void setAsNewUser(){
+        public void setAsFollower() {
             actionLabel.setText("<html><u>Follow</u></html>");
+            if (currentMouseAction != null)
+                actionLabel.removeMouseListener(currentMouseAction);
+
+            currentMouseAction = actionLabel.addOnMouseClick(() -> ActionPipe.performAction(ACTIONS.FOLLOW_ACTION, getUsername()));
             currentType = Type.FOLLOWER;
         }
 
@@ -122,27 +157,21 @@ public class FollowersPage extends JPanel {
             JLabel label = (JLabel) e.getSource();
             PageBanner banner = (PageBanner) label.getParent();
 
-            //decido di seguire un utente
-            if(banner.userType() == Type.FOLLOWER){
-                banner.setAsFollower();
+            if (banner.userType() == Type.FOLLOWER) {
+                banner.setAsFollowing();
 
+                leftComponents.remove(banner.getUsername());
                 left.removeBanner(banner);
                 left.revalidate();
                 left.repaint();
 
-                right.rootPanel.add(banner);
-                right.revalidate();
-                right.repaint();
-            }else if (banner.userType() == Type.FOLLOWING){
-                banner.setAsNewUser();
-
+                rightComponents.add(banner.getUsername());
+                right.addFollowerBanner(banner);
+            } else if (banner.userType() == Type.FOLLOWING) {
+                rightComponents.remove(banner.getUsername());
                 right.removeBanner(banner);
                 right.revalidate();
                 right.repaint();
-
-                left.rootPanel.add(banner);
-                left.revalidate();
-                left.repaint();
             }
         }
 

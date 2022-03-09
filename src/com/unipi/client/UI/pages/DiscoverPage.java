@@ -1,7 +1,8 @@
 package com.unipi.client.UI.pages;
 
 import com.unipi.client.UI.banners.UserBanner;
-import com.unipi.client.UI.components.*;
+import com.unipi.client.UI.components.LinkLabel;
+import com.unipi.client.UI.components.TextInputField;
 import com.unipi.client.mainFrame.ACTIONS;
 import com.unipi.client.mainFrame.ActionPipe;
 
@@ -10,31 +11,55 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 
 public class DiscoverPage extends JPanel {
-    private LinkLabel label;
+    private JPanel panel;
+    private GridBagConstraints gbc;
+    private int offset;
+    private final JPanel filler = new JPanel();
+    private LinkedHashSet<UserBanner> banners;
 
     public DiscoverPage(ArrayList<UserBanner> banners) {
         super(new BorderLayout());
-        label = new LinkLabel();
+        this.banners = new LinkedHashSet<>();
+        this.banners.addAll(banners);
 
-        JPanel panel = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
+        panel = new JPanel(new GridBagLayout());
+        gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.NORTHWEST;
         gbc.ipady = 50;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1;
         gbc.weighty = 1;
         gbc.gridx = 0;
-        JPanel filler = new JPanel();
-        filler.setOpaque(false);
-        panel.add(filler, gbc);
-        gbc.gridy++;
-        for (UserBanner banner : banners) {
-            panel.add(banner, gbc);
-            gbc.gridy++;
+        for (int i = 0; i < banners.size(); i++) {
+            panel.add(banners.get(i), gbc);
+            gbc.gridy = i;
         }
+        offset = 0;
 
+        TextInputField inputField = getSearchField();
+
+        LinkLabel label = new LinkLabel("Indietro");
+        label.setMargin(new Insets(0, 0, 0, 10));
+        label.setTextSize(19);
+        label.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.BACKPAGE_ACTION, null));
+
+        JPanel topBarPanel = new JPanel(new BorderLayout());
+        topBarPanel.add(inputField, BorderLayout.LINE_START);
+        topBarPanel.add(label, BorderLayout.LINE_END);
+
+        JScrollPane scrollPane = new JScrollPane(panel);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(15);
+
+        add(topBarPanel, BorderLayout.NORTH);
+        add(scrollPane, BorderLayout.CENTER);
+    }
+
+    private TextInputField getSearchField() {
         TextInputField inputField = new TextInputField(20);
         inputField.setPlaceHolder("Cerca");
         inputField.setMargin(new Insets(10, 10, 10, 10));
@@ -64,40 +89,40 @@ public class DiscoverPage extends JPanel {
                 }
             }
         });
-
-        label = new LinkLabel("Avanti");
-        label.setMargin(new Insets(0, 0, 0, 10));
-        label.setTextSize(19);
-
-        JPanel topBarPanel = new JPanel(new BorderLayout());
-        topBarPanel.add(inputField, BorderLayout.LINE_START);
-        topBarPanel.add(label, BorderLayout.LINE_END);
-
-        JScrollPane scrollPane = new JScrollPane(panel);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(15);
-
-        add(topBarPanel, BorderLayout.NORTH);
-        add(scrollPane, BorderLayout.CENTER);
+        return inputField;
     }
 
+    public DiscoverPage() {
+        this(new ArrayList<>());
+    }
 
-    public void setNextHope(ACTIONS action){
-        if(action != ACTIONS.HOME_ACTION && action != ACTIONS.PROFILE_ACTION) {
-            label.setMyAction(ACTIONS.NONE, "None");
-            return;
-        }
+    public void add(UserBanner banner) {
+        boolean added = banners.add(banner);
+        if(!added) return;
 
-        if(action == ACTIONS.HOME_ACTION) {
-            label.setMyAction(action, "Avanti");
-            label.setOnMouseClick(()->{
-                ActionPipe.performAction(ACTIONS.HOME_ACTION, null);
-            });
-        }else {
-            label.setMyAction(action, "Il mio Profilo");
-            label.setOnMouseClick(()->{
-                ActionPipe.performAction(ACTIONS.PROFILE_ACTION, null);
-            });
-        }
+        panel.remove(filler);
+        gbc.gridy = offset;
+        gbc.weighty = 0;
+        panel.add(banner, gbc);
+        offset++;
+        placeFiller();
+        panel.revalidate();
+    }
+
+    public void addAll(ArrayList<UserBanner> banners) {
+        for (UserBanner b : banners)
+            add(b);
+    }
+
+    void placeFiller() {
+        gbc.gridy++;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weightx = 1;
+        gbc.weighty = 1;
+        filler.setOpaque(false);
+        panel.add(filler, gbc);
+        panel.revalidate();
+
+        gbc.fill = GridBagConstraints.HORIZONTAL;
     }
 }

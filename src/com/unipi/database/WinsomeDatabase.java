@@ -31,7 +31,7 @@ public interface WinsomeDatabase {
 
     Map<String, Set<Node>> getFriendsPostsOf(String username);
 
-    Map<String, Set<Node>> getLatestFriendsPostsOf(String username, Date date);
+    Map<String, Set<Node>> getLatestFriendsPostsOf(String username, Map<String, String> date);
 
     boolean rewinFriendsPost(String username, UUID idPost);
 

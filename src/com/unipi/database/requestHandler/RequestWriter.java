@@ -1,6 +1,7 @@
 package com.unipi.database.requestHandler;
 
-import com.google.gson.Gson;
+import com.unipi.common.SimpleComment;
+import com.unipi.common.SimpleLike;
 import com.unipi.database.Database;
 import com.unipi.database.DatabaseMain;
 import com.unipi.database.graph.graphNodes.GraphNode;
@@ -12,7 +13,7 @@ import com.unipi.database.tables.Post;
 import com.unipi.database.utility.ThreadWorker;
 import com.unipi.utility.channelsio.ChannelSender;
 import com.unipi.utility.channelsio.PipedSelector;
-import com.unipi.utility.common.SimplePost;
+import com.unipi.common.SimplePost;
 
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
@@ -25,13 +26,11 @@ public class RequestWriter implements Runnable {
     private Packet packet;
     private ChannelSender out;
     private Database database;
-    private Gson gson;
 
     public RequestWriter(SocketChannel socket, PipedSelector selector, Packet p) {
         this.socket = socket;
         this.selector = selector;
         this.packet = p;
-        this.gson = new Gson();
         this.database = DatabaseMain.getDatabase();
     }
 
@@ -150,18 +149,18 @@ public class RequestWriter implements Runnable {
             Set<Node> commentNodes = (Set<Node>) map.get("COMMENTS");
             Set<Node> likeNodes = (Set<Node>) map.get("LIKES");
 
-            ArrayList<Comment> comments = new ArrayList<>(commentNodes.size());
-            ArrayList<Like> likes = new ArrayList<>(likeNodes.size());
+            ArrayList<SimpleComment> comments = new ArrayList<>(commentNodes.size());
+            ArrayList<SimpleLike> likes = new ArrayList<>(likeNodes.size());
 
             for (Node n : commentNodes) {
                 if (n instanceof GraphNode<?> g && g.getValue() instanceof Comment c) {
-                    comments.add(c);
+                    comments.add(c.toSimpleComment());
                 }
             }
 
             for (Node n : likeNodes) {
                 if (n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
-                    likes.add(l);
+                    likes.add(l.toSimpleLike());
                 }
             }
 

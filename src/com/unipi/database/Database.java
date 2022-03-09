@@ -16,6 +16,7 @@ import com.unipi.database.tables.User;
 
 import java.io.*;
 import java.lang.reflect.Type;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -120,9 +121,9 @@ public class Database implements WinsomeDatabase {
         try {
             User u = Objects.requireNonNull(tableUsers.get(username));
             Set<Node> tagsSet = graph.adjacentNodes(u.getTagsGroupNode());
-            if(u.getPassword().equals(password))
+            if (u.getPassword().equals(password))
                 return tagsSet.stream().filter(node -> {
-                    if(node instanceof GraphNode<?> g && g.getValue() instanceof String s)
+                    if (node instanceof GraphNode<?> g && g.getValue() instanceof String s)
                         return !s.equals(username);
                     return false;
                 }).collect(Collectors.toSet());
@@ -251,18 +252,17 @@ public class Database implements WinsomeDatabase {
         Post p = getPost(idPost);
         User u = getUser(whoWantToView);
         if (p != null && u != null) {
-//            if (!u.getFollowing().contains(p.getAuthor())) return new HashMap<>();
-
-            HashMap<String, Object> result = new HashMap<>();
+            HashMap<String, Object> post = new HashMap<>();
 
             GroupNode comments = p.getCommentsGroupNode();
             GroupNode likes = p.getLikesGroupNode();
 
-            result.put("POST", p);
-            result.put("COMMENTS", graph.adjacentNodes(comments));
-            result.put("LIKES", graph.adjacentNodes(likes));
+            post.put("TITLE", p.getTitle());
+            post.put("CONTENT", p.getContent());
+            post.put("LIKES", graph.adjacentNodes(likes));
+            post.put("COMMENTS", graph.adjacentNodes(comments));
 
-            return result;
+            return post;
         }
 
         return new HashMap<>();
@@ -298,30 +298,47 @@ public class Database implements WinsomeDatabase {
 
 
     @Override
-    public Map<String, Set<Node>> getLatestFriendsPostsOf(String username, Date date) {
+    public Map<String, Set<Node>> getLatestFriendsPostsOf(String username, Map<String, String> dateMap) {
         User me = tableUsers.get(username);
-        if (me == null) return null;
+        if (me == null) return new HashMap<>();
 
         HashMap<String, Set<Node>> result = new HashMap<>();
+        SimpleDateFormat format = new SimpleDateFormat(Database.getDateFormat().toString());
 
-        for (String follow : me.getFollowing()) {
+        for (Map.Entry<String, String> entry : dateMap.entrySet()) {
+            String follow = entry.getKey();
+            String date = entry.getValue();
+            if (!me.getFollowing().contains(follow)) continue;
+
             try {
                 User friend = Objects.requireNonNull(tableUsers.get(follow));
-                if (friend.getDateOfLastPost().after(date)) {
+
+                if(date.equals("0")){
                     Set<Node> nodes = graph.adjacentNodes(friend.getPostsGroupNode());
-                    Set<Node> s = nodes.stream()
+                    result.put(follow, nodes);
+                    continue;
+                }
+
+                Date d = format.parse(date);
+                //se la amico ha postato qualcosa dopo la data d
+                if (friend.getDateOfLastPost().after(d)) {
+                    Set<Node> nodes = graph.adjacentNodes(friend.getPostsGroupNode());
+                    Set<Node> postsAfterDate = nodes.stream()
 //                            .parallel()
                             .filter(node -> {
                                 if (node instanceof GraphNode<?> g && g.getValue() instanceof Post p) {
-                                    return p.date().toDate().after(date);
+                                    return p.date().toDate().after(d);
                                 }
 
                                 return false;
                             }).collect(Collectors.toSet());
 
-                    result.put(follow, s);
+                    result.put(follow, postsAfterDate);
                 }
-            } catch (NullPointerException ignored) {
+
+
+            } catch (ParseException | NullPointerException e) {
+                e.printStackTrace();
             }
         }
 
@@ -412,13 +429,34 @@ public class Database implements WinsomeDatabase {
         Post p = tablePosts.get(idPost);
         if (u == null || p == null) return false;
         if (!u.getFollowing().contains(p.getAuthor())) return false;
+        if(u.getUsername().equals(p.getAuthor())) return false;
 
-        Like like = new Like(idPost, type);
-        GraphNode<Like> likeNode = new GraphNode<>(like);
         Post post = tablePosts.get(idPost);
         if (post == null) return false;
 
         GroupNode likesGroup = post.getLikesGroupNode();
+
+        Set<Node> likes = graph.adjacentNodes(post.getLikesGroupNode());
+//        for (Node n : likes) {
+//            if(n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
+//                if(l.getUsername().equals(username) && l.getType() != type) {
+//                    l.setType(type);
+//                    graph.putEdge(newEntryGroup, n);
+//                    graphSaver.saveLike(username, l);
+//                }
+//                else if(l.getUsername().equals(username) && l.getType() == type)
+//                    return false;
+//            }
+//        }
+        for (Node n : likes) {
+            if(n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
+                if(l.getUsername().equals(username))
+                    return false;
+            }
+        }
+
+        Like like = new Like(idPost, type, username);
+        GraphNode<Like> likeNode = new GraphNode<>(like);
 
         graph.putEdge(likesGroup, likeNode);
         graph.putEdge(newEntryGroup, likeNode);
@@ -427,7 +465,6 @@ public class Database implements WinsomeDatabase {
     }
 
     //username vuole cancellare un post con id=idPost
-
     @Override
     public boolean removePost(String username, UUID idPost) {
         Post p = tablePosts.remove(idPost);

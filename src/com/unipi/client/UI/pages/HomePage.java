@@ -1,6 +1,5 @@
 package com.unipi.client.UI.pages;
 
-import com.unipi.client.Pages;
 import com.unipi.client.UI.banners.PostBanner;
 import com.unipi.client.UI.components.LinkLabel;
 import com.unipi.client.mainFrame.ACTIONS;
@@ -12,16 +11,19 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.*;
+import java.util.List;
+import java.util.function.Predicate;
 
 public class HomePage extends JPanel {
     private final BannerLayout gridPanel;
     private JLabel tagLabel;
+    private TreeSet<PostBanner> banners;
 
     public HomePage(ArrayList<String> tags) {
         super(new BorderLayout(), true);
         this.tagLabel = new JLabel();
+        this.banners = new TreeSet<>();
 
         JScrollPane scrollPane = createScrollableBannerLayout(15);
         gridPanel = (BannerLayout) scrollPane.getViewport().getView();
@@ -78,114 +80,150 @@ public class HomePage extends JPanel {
             gridPanel.removeBackground();
 
         gridPanel.placeComponent(postBanner);
+        banners.add(postBanner);
     }
 
-    public void removePost(PostBanner postBanner) {
-        gridPanel.remove(postBanner);
+    public void removePost(PostBanner banner) {
+        if(!banners.contains(banner)) return;
+
+        gridPanel.remove(banner);
+        gridPanel.revalidate();
+        gridPanel.repaint();
+        banners.remove(banner);
     }
 
-    public static class BannerLayout extends JPanel {
-        private boolean paint = false;
-        private final GridBagConstraints gbc;
-        private int max_offset = 100;
-        private int offset = max_offset;
-        private final JPanel filler = new JPanel();
-        private final LinkedHashSet<Component> components = new LinkedHashSet<>();
+    public void addAll(List<PostBanner> banners) {
+        if (gridPanel.isBackgroundSetted())
+            gridPanel.removeBackground();
 
-        public BannerLayout(boolean showBackground) {
-            super(new GridBagLayout());
+        gridPanel.offset = 0;
 
-            this.paint = showBackground;
-            gbc = new GridBagConstraints();
-            init();
+        for (PostBanner p : this.banners) {
+            gridPanel.remove(p);
         }
 
-        public void init() {
-            gbc.insets = new Insets(5, 200, 5, 200);
-            gbc.anchor = GridBagConstraints.FIRST_LINE_START;
-            gbc.ipady = 50;
-            gbc.fill = GridBagConstraints.HORIZONTAL;
-            gbc.weightx = 1;
-        }
+        this.banners.addAll(banners);
 
-        public BannerLayout() {
-            super(new GridBagLayout());
-            gbc = new GridBagConstraints();
-
-            init();
-        }
-
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            if (!paint)
-                return;
-
-            try {
-                BufferedImage img = ImageIO.read(new File("./resources/wallpaper.jpg"));
-                Image scaledImg = img.getScaledInstance(getWidth(), getHeight(), Image.SCALE_DEFAULT);
-                g.drawImage(scaledImg, 0, 0, null);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        public void showBackground() {
-            this.paint = true;
-            repaint();
-        }
-
-        public void removeBackground() {
-            this.paint = false;
-            repaint();
-        }
-
-        public void placeComponent(Component comp) {
-            components.add(comp);
-
-            remove(filler);
-            gbc.gridx = 0;
-            gbc.gridy = offset;
-            gbc.weighty = 0;
-            gbc.fill = GridBagConstraints.HORIZONTAL;
-
-            add(comp, gbc);
-            offset--;
-            if(offset == 0) {
-                for (Component c : components) {
-                    remove(c);
-                }
-
-                max_offset *= 2;
-                offset = max_offset;
-                re_insert();
-                return;
-            }
-            placeFiller();
-            revalidate();
-        }
-
-        private void re_insert() {
-            for (Component c : components) {
-                placeComponent(c);
-            }
-        }
-
-        public void placeFiller(){
-            gbc.gridy++;
-            gbc.weightx = 1;
-            gbc.weighty = 1;
-            gbc.fill = GridBagConstraints.BOTH;
-
-
-            filler.setOpaque(false);
-            add(filler, gbc);
-        }
-
-        public boolean isBackgroundSetted() {
-            return paint;
+        for (PostBanner p : this.banners) {
+            gridPanel.placeComponent(p);
         }
     }
+
+    public void clear() {
+        for (PostBanner p : banners) {
+            gridPanel.remove(p);
+        }
+
+        banners.clear();
+        gridPanel.offset = 0;
+        gridPanel.showBackground();
+    }
+
+    public Set<PostBanner> getBanners() {
+        return banners;
+    }
+
+    public void removePostIf(Predicate<PostBanner> predicate) {
+        banners.stream()
+                .filter(predicate)
+                .toList()
+                .forEach(b -> {
+                    gridPanel.remove(b);
+                    banners.remove(b);
+                });
+
+        if(!containsPosts())
+            gridPanel.showBackground();
+    }
+
+    public PostBanner getPostBanner(String id) {
+        return banners.stream().filter(p -> p.getID().equals(id)).findFirst().orElse(null);
+    }
+
+    public boolean containsPosts() {
+        return !banners.isEmpty();
+    }
+
+    public void showBackground() {
+        if(banners.isEmpty())
+            gridPanel.showBackground();
+    }
+
+public static class BannerLayout extends JPanel {
+    private boolean paint = false;
+    private final GridBagConstraints gbc;
+    private int offset = 0;
+    private final JPanel filler = new JPanel();
+
+    public void init() {
+        gbc.insets = new Insets(5, 200, 5, 200);
+        gbc.anchor = GridBagConstraints.FIRST_LINE_START;
+        gbc.ipady = 50;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+    }
+
+    public BannerLayout() {
+        super(new GridBagLayout());
+        gbc = new GridBagConstraints();
+
+        init();
+    }
+
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        if (!paint)
+            return;
+
+        try {
+            BufferedImage img = ImageIO.read(new File("./resources/wallpaper.jpg"));
+            Image scaledImg = img.getScaledInstance(getWidth(), getHeight(), Image.SCALE_DEFAULT);
+            g.drawImage(scaledImg, 0, 0, null);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void removeBackground() {
+        paint = false;
+        repaint();
+    }
+
+    public void placeComponent(Component comp) {
+        remove(filler);
+        gbc.gridx = 0;
+        gbc.gridy = offset;
+        gbc.weighty = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        add(comp, gbc);
+        offset++;
+        placeFiller();
+        revalidate();
+    }
+
+    public void showBackground(){
+        this.paint = true;
+        repaint();
+    }
+
+    public void placeFiller(){
+        gbc.gridy++;
+        gbc.weightx = 1;
+        gbc.weighty = 1;
+        gbc.fill = GridBagConstraints.BOTH;
+
+
+        filler.setOpaque(false);
+        add(filler, gbc);
+    }
+
+    public boolean isBackgroundSetted() {
+        return paint;
+    }
+
+}
 }

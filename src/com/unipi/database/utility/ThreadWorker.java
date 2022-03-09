@@ -2,7 +2,7 @@ package com.unipi.database.utility;
 
 import com.unipi.utility.channelsio.ChannelSender;
 import com.unipi.utility.channelsio.Receiver;
-import com.unipi.utility.channelsio.concurrent.ConcurrentChannelReceiver;
+import com.unipi.utility.channelsio.ConcurrentChannelReceiver;
 
 import java.util.concurrent.ThreadFactory;
 

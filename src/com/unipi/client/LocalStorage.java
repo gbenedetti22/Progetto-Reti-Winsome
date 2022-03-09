@@ -38,6 +38,10 @@ public class LocalStorage implements FollowersDatabase, Serializable {
         return following;
     }
 
+    public ArrayList<String> getFollowers() {
+        return followers;
+    }
+
     public String getCurrentUsername() {
         return currentUsername;
     }

@@ -114,7 +114,7 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
     @Override
     public WSResponse performRegistration(WSRequest request) throws RemoteException {
         if (request.getOp() != WSRequest.WS_OPERATIONS.CREATE_USER) {
-            return new WSResponse(WSResponse.S_STATUS.ERROR, "Operazione non consentita");
+            return new WSResponse(WSResponse.CODES.ERROR, "Operazione non consentita");
         }
 
         ServerRequestReader reader = new ServerRequestReader(request);
@@ -133,13 +133,13 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
         try {
             String s = (String) task.get(1500, TimeUnit.MILLISECONDS);
             if (!s.equals("OK")) {
-                return new WSResponse(WSResponse.S_STATUS.ERROR, s);
+                return new WSResponse(WSResponse.CODES.ERROR, s);
             }
 
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         } catch (TimeoutException e) {
-            return new WSResponse(WSResponse.S_STATUS.ERROR, "C'è stato un errore. Riprovare più tardi");
+            return new WSResponse(WSResponse.CODES.ERROR, "C'è stato un errore. Riprovare più tardi");
         }
 
         return WSResponse.newSuccessResponse();
@@ -184,6 +184,10 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
 
         callbacksMap.remove(username);
         return true;
+    }
+
+    public static void unregisterClient(String username) {
+        callbacksMap.remove(username);
     }
 
     public static FollowersDatabase getCallback(String username) {

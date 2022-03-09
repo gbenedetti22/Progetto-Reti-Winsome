@@ -92,6 +92,7 @@ public class TextArea extends JTextArea {
         setText(placeholder);
         setForeground(Color.LIGHT_GRAY);
         insertedText = false;
+        holderSetted = true;
     }
 
     @Override

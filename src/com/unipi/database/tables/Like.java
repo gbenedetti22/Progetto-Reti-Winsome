@@ -1,5 +1,7 @@
 package com.unipi.database.tables;
 
+import com.unipi.common.SimpleLike;
+
 import java.util.Objects;
 import java.util.UUID;
 
@@ -11,12 +13,14 @@ public class Like {
 
     private final UUID idLike;
     private final UUID idPost;
-    private final type type;
+    private final String username; //chi ha messo il like
+    private type type;
     private transient long linePosition;
 
-    public Like(UUID idPost, Like.type type) {
+    public Like(UUID idPost, Like.type type, String username) {
         this.idPost = idPost;
         this.type = type;
+        this.username = username;
 
         this.idLike = UUID.randomUUID();
         linePosition = -1;
@@ -26,8 +30,16 @@ public class Like {
         return idPost;
     }
 
+    public void setType(Like.type type) {
+        this.type = type;
+    }
+
     public Like.type getType() {
         return type;
+    }
+
+    public String getUsername() {
+        return username;
     }
 
     public UUID getId() {
@@ -40,6 +52,10 @@ public class Like {
 
     public void setLinePosition(long linePosition) {
         this.linePosition = linePosition;
+    }
+
+    public SimpleLike toSimpleLike() {
+        return new SimpleLike(type);
     }
 
     @Override
@@ -61,6 +77,6 @@ public class Like {
 
     @Override
     public int hashCode() {
-        return Objects.hash(idLike, idPost, type);
+        return Objects.hash(idLike);
     }
 }

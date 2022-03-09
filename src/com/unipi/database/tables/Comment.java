@@ -1,5 +1,6 @@
 package com.unipi.database.tables;
 
+import com.unipi.common.SimpleComment;
 import com.unipi.database.Database;
 
 import java.text.ParseException;
@@ -51,6 +52,10 @@ public class Comment implements Comparable<Comment>{
 
     public void setLinePosition(long linePosition) {
         this.linePosition = linePosition;
+    }
+
+    public SimpleComment toSimpleComment() {
+        return new SimpleComment(author, content, date);
     }
 
     @Override

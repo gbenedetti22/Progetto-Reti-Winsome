@@ -3,7 +3,7 @@ package com.unipi.client.UI.banners;
 import com.unipi.client.UI.components.LinkLabel;
 import com.unipi.client.mainFrame.ACTIONS;
 import com.unipi.client.mainFrame.ActionPipe;
-import com.unipi.utility.common.SimplePost;
+import com.unipi.common.SimplePost;
 
 import javax.swing.*;
 import javax.swing.border.Border;
@@ -11,8 +11,9 @@ import javax.swing.border.CompoundBorder;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.text.SimpleDateFormat;
 
-public class PostBanner extends JPanel {
+public class PostBanner extends JPanel implements Comparable<PostBanner>{
     private String author;
     private LinkLabel retweet;
     private JTextArea placeholder;
@@ -20,8 +21,11 @@ public class PostBanner extends JPanel {
     private JLabel info;
     private JPanel optionPanel;
     private String date;
+    private SimpleDateFormat format = new SimpleDateFormat("dd/MM/yy - hh:mm:ss");
+    private SimplePost attached_post;
+    private String rewin;
 
-    public PostBanner(String id, String author_name, String title, String content, String date, boolean deletable) {
+    protected PostBanner(String id, String author_name, String title, String content, String date, boolean deletable, boolean mouseClick) {
         this.author = author_name;
         this.date = date;
         this.id = id;
@@ -67,10 +71,19 @@ public class PostBanner extends JPanel {
         add(topPostBanner, BorderLayout.NORTH);
         add(placeholder, BorderLayout.CENTER);
         add(info, BorderLayout.PAGE_END);
+
+        if(mouseClick)
+            setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.VIEW_POST_ACTION, id));
     }
 
     public PostBanner(SimplePost p) {
-        this(p.getId(), p.getAuthor(), p.getTitle(), p.getContent(), p.getDate().toString(), false);
+        this(p.getId(), p.getAuthor(), p.getTitle(), p.getContent(), p.getDate(), false, true);
+        this.attached_post = p;
+    }
+
+    public PostBanner(SimplePost p, boolean deletable) {
+        this(p.getId(), p.getAuthor(), p.getTitle(), p.getContent(), p.getDate(), deletable, true);
+        this.attached_post = p;
     }
 
     public void setDeletable() {
@@ -91,13 +104,38 @@ public class PostBanner extends JPanel {
         return id;
     }
 
+    public String getDate() {
+        return date;
+    }
+
+    public String getRewin() {
+        return rewin;
+    }
+
+    public SimplePost getAttachedPost() {
+        return attached_post;
+    }
+
     public void hideRewinLabel(boolean value) {
         retweet.setVisible(!value);
     }
 
     public void setAsRewin(String rewinnedBy) {
-        String text = String.format("Rewinned by -> %s", rewinnedBy);
+        String text = String.format("Rewinned by -> %s - %s", rewinnedBy, date);
         info.setText(text);
+        this.rewin = rewinnedBy;
+    }
+
+    public boolean isRewin() {
+        return rewin != null;
+    }
+
+    public void setRewinnable(boolean value) {
+        retweet.setVisible(value);
+        if(value) {
+            rewin = null;
+            info.setText(author.concat(" - " + date));
+        }
     }
 
     public void setOnMouseClick(Runnable runnable) {
@@ -141,5 +179,10 @@ public class PostBanner extends JPanel {
     @Override
     public String toString() {
         return "" + id + ": " + author + " -> " + this.placeholder.getText();
+    }
+
+    @Override
+    public int compareTo(PostBanner o) {
+        return o.attached_post.compareTo(attached_post);
     }
 }

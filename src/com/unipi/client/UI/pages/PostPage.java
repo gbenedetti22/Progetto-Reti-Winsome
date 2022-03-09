@@ -1,27 +1,36 @@
 package com.unipi.client.UI.pages;
 
-import com.unipi.client.UI.banners.PostBanner;
-import com.unipi.client.UI.components.*;
+import com.unipi.client.UI.banners.CommentBanner;
+import com.unipi.client.UI.components.BlueButton;
+import com.unipi.client.UI.components.LinkLabel;
+import com.unipi.client.mainFrame.ACTIONS;
+import com.unipi.client.mainFrame.ActionPipe;
 
 import javax.swing.*;
 import javax.swing.text.*;
 import java.awt.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 
 public class PostPage extends JPanel {
     private final JTextPane textPane;
     private GridBagConstraints gbc;
     private final String title;
-    private HomePage.BannerLayout gridPanel;
     private int numLike;
     private int numDislike;
     private JLabel labelLike;
     private JLabel labelDislike;
+    private CommentsPage commentsPage;
+    private String id;
 
-    public PostPage(String title, String content) {
+    public PostPage(String id, String title, String content) {
         super(new BorderLayout());
         this.title = title;
+        this.id = id;
+        this.commentsPage = new CommentsPage(this);
         textPane = new JTextPane();
         textPane.setEditorKit(new WrapEditorKit());
+        textPane.setMinimumSize(new Dimension());
 
         setTitle(title);
         setContent(content);
@@ -29,39 +38,14 @@ public class PostPage extends JPanel {
         textPane.setEditable(false);
 
         JPanel upperPanel = initUpperPanel();
-        JScrollPane downPanel = HomePage.createScrollableBannerLayout(10);
 
-        gridPanel = (HomePage.BannerLayout) downPanel.getViewport().getView();
+        add(upperPanel, BorderLayout.CENTER);
 
-        JPanel framePanel = new JPanel(new GridBagLayout());
-        gbc = new GridBagConstraints();
-        gbc.anchor = GridBagConstraints.CENTER;
-        gbc.ipady = 50;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        framePanel.add(upperPanel, gbc);
-
-        gbc.weightx = 1;
-        gbc.weighty = 1;
-        gbc.fill = GridBagConstraints.BOTH;
-        gbc.gridy = 1;
-        framePanel.add(downPanel, gbc);
-
-        JScrollPane scrollPane = new JScrollPane(framePanel);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(20);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-
-        framePanel.setPreferredSize(new Dimension(1280, 720 * 2));
-        scrollPane.setPreferredSize(framePanel.getPreferredSize());
-
-        add(scrollPane, BorderLayout.CENTER);
-        JLabel backLabel = new JLabel("<html><u>Indietro</u></html>", SwingConstants.LEFT);
-        backLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+        LinkLabel backLabel = new LinkLabel("Indietro");
         backLabel.setBorder(BorderFactory.createEmptyBorder(10, 7, 10, 0));
-        backLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        backLabel.setForeground(Color.BLUE);
         backLabel.setBackground(Color.WHITE);
         backLabel.setOpaque(true);
+        backLabel.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.BACKPAGE_ACTION));
 
         add(backLabel, BorderLayout.NORTH);
     }
@@ -117,11 +101,37 @@ public class PostPage extends JPanel {
 
         JPanel likeDislikePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         likeDislikePanel.setBackground(Color.WHITE);
+
         JLabel like = new JLabel("●");
         like.setFont(new Font("Arial", Font.BOLD, 45));
         like.setForeground(Color.GREEN);
         like.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        like.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                ActionPipe.performAction(ACTIONS.LIKE_ACTION);
+            }
 
+            @Override
+            public void mousePressed(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+
+            }
+        });
 
         labelLike = new JLabel("0");
         labelLike.setFont(new Font("Arial", Font.PLAIN, 15));
@@ -131,60 +141,94 @@ public class PostPage extends JPanel {
         dislike.setFont(new Font("Arial", Font.BOLD, 45));
         dislike.setForeground(Color.RED);
         dislike.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        dislike.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                ActionPipe.performAction(ACTIONS.DISLIKE_ACTION);
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+
+            }
+        });
 
         labelDislike = new JLabel("0");
         labelDislike.setFont(new Font("Arial", Font.PLAIN, 15));
+
+        LinkLabel comments = new LinkLabel("Commenti", SwingConstants.RIGHT);
+        comments.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 15));
+        comments.setOnMouseClick(commentsPage::open);
 
         likeDislikePanel.add(like);
         likeDislikePanel.add(labelLike);
         likeDislikePanel.add(dislike);
         likeDislikePanel.add(labelDislike);
 
+        JPanel instrumentsPanel = new JPanel(new BorderLayout());
+        instrumentsPanel.setBackground(Color.WHITE);
+        instrumentsPanel.add(likeDislikePanel, BorderLayout.LINE_START);
+        instrumentsPanel.add(comments, BorderLayout.LINE_END);
+
         gbc.ipady = 1;
         gbc.gridx = 0;
         gbc.gridy = 1;
 
         likeDislikePanel.setBackground(Color.WHITE);
-        postContainer.add(likeDislikePanel, gbc);
-
-        JTextField input = new JTextField();
-        gbc.ipady = 20;
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.insets = new Insets(35, 0, 0, 0);
-        postContainer.add(input, gbc);
-
-        BlueButton button = new BlueButton("Pubblica");
-
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.insets = new Insets(14, 0, 0, 0);
-        postContainer.add(button, gbc);
+        postContainer.add(instrumentsPanel, gbc);
         postTopPanel.add(postContainer, BorderLayout.CENTER);
 
         return postTopPanel;
     }
 
-    public void addComment(PostBanner postBanner) {
-        gridPanel.placeComponent(postBanner);
-    }
-
-    public void addLike(){
-        numLike++;
-        labelLike.setText(String.valueOf(numLike));
-    }
-
-    public void addDislike(){
-        numDislike++;
-        labelDislike.setText(String.valueOf(numDislike));
+    public void addComment(CommentBanner postBanner) {
+        commentsPage.addComment(postBanner);
     }
 
     public String getTitle() {
         return title;
     }
 
-    private class WrapEditorKit extends StyledEditorKit {
+    public String getId() {
+        return id;
+    }
+
+    public void setLikes(int likes) {
+        labelLike.setText(String.valueOf(likes));
+        numLike = likes;
+    }
+
+    public void setDislikes(int dislikes) {
+        labelDislike.setText(String.valueOf(dislikes));
+        numDislike = dislikes;
+    }
+
+    public void addLike() {
+        numLike++;
+        labelLike.setText(String.valueOf(numLike));
+    }
+
+    public void addDislike() {
+        numDislike++;
+        labelLike.setText(String.valueOf(numDislike));
+    }
+
+    private static class WrapEditorKit extends StyledEditorKit {
         ViewFactory defaultFactory = new WrapColumnFactory();
 
         public ViewFactory getViewFactory() {
@@ -192,7 +236,7 @@ public class PostPage extends JPanel {
         }
     }
 
-    private class WrapColumnFactory implements ViewFactory {
+    private static class WrapColumnFactory implements ViewFactory {
         public View create(Element elem) {
             String kind = elem.getName();
             if (kind != null) {
@@ -213,7 +257,7 @@ public class PostPage extends JPanel {
         }
     }
 
-    private class WrapLabelView extends LabelView {
+    private static class WrapLabelView extends LabelView {
         public WrapLabelView(Element elem) {
             super(elem);
         }

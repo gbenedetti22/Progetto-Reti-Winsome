@@ -1,4 +1,4 @@
-package com.unipi.utility.channelsio.concurrent;
+package com.unipi.utility.channelsio;
 
 import java.io.*;
 import java.net.SocketException;

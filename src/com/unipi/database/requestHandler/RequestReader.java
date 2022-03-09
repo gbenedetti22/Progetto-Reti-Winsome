@@ -1,19 +1,20 @@
 package com.unipi.database.requestHandler;
 
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.unipi.database.Database;
 import com.unipi.database.DatabaseMain;
-import com.unipi.database.WinsomeDatabase;
 import com.unipi.database.graph.graphNodes.Node;
 import com.unipi.database.tables.Post;
 import com.unipi.database.utility.ThreadWorker;
 import com.unipi.utility.channelsio.PipedSelector;
-import com.unipi.utility.channelsio.concurrent.ConcurrentChannelReceiver;
+import com.unipi.utility.channelsio.ConcurrentChannelReceiver;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class RequestReader implements Runnable {
@@ -195,22 +196,23 @@ public class RequestReader implements Runnable {
         response = new Packet(Packet.FUNCTION.FRIENDS_POSTS, map);
     }
 
-    //GET FRIENDS POST FROM DATE: USERNAME DATE
+    //GET FRIENDS POST FROM DATE: USERNAME JSON
+    private Type mapType = new TypeToken<HashMap<String, String>>(){}.getType();
     public void getLatestFriendsPostsOf(String record) {
-        String[] data = record.trim().split(" ", 2);
-        String username = data[0].trim();
-        String date = data[1].trim();
+        String[] data = record.split(" ", 2);
+        String username = data[0];
+        String json = data[1];
 
-        Map<String, Set<Node>> map;
+        HashMap<String, String> dateMap = new Gson().fromJson(json, mapType);
+        Map<String, Set<Node>> posts;
         try {
-            SimpleDateFormat dateFormat = Database.getDateFormat().toSimpleDateFormat();
-            map = database.getLatestFriendsPostsOf(username, dateFormat.parse(date));
-        } catch (ParseException e) {
-            response = new Packet(Packet.FUNCTION.GET_LATEST_POST, "Date error: " + date);
+            posts = database.getLatestFriendsPostsOf(username, dateMap);
+        } catch (JsonSyntaxException e) {
+            response = new Packet(Packet.FUNCTION.GET_LATEST_POST, "Map error: " + dateMap);
             return;
         }
 
-        response = new Packet(Packet.FUNCTION.GET_LATEST_POST, map);
+        response = new Packet(Packet.FUNCTION.GET_LATEST_POST, posts);
     }
 
     //REWIN: USERNAME IDPOST
@@ -221,7 +223,8 @@ public class RequestReader implements Runnable {
 
         boolean rewinned = database.rewinFriendsPost(username, UUID.fromString(idPost));
 
-        response = new Packet(Packet.FUNCTION.REWIN, rewinned ? "OK" : "NOT FOLLLOWING");
+        //TODO: modifcare i casi di errore
+        response = new Packet(Packet.FUNCTION.REWIN, rewinned ? "OK" : "NOT FOLLOWING");
     }
 
     //REMOVE REWIN: USERNAME IDPOST

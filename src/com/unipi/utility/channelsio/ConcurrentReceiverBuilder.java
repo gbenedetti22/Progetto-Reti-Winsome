@@ -1,4 +1,4 @@
-package com.unipi.utility.channelsio.concurrent;
+package com.unipi.utility.channelsio;
 
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,7 +8,7 @@ public class ConcurrentReceiverBuilder {
     private static final ConcurrentHashMap<SocketChannel, String> chunksMap = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<SocketChannel, ReentrantLock> locksMap = new ConcurrentHashMap<>();
 
-    public static ConcurrentChannelReceiver newConcurrentReceiver(){
+    protected static ConcurrentChannelReceiver newConcurrentReceiver(){
         return new ConcurrentChannelReceiver(chunksMap, locksMap);
     }
 }

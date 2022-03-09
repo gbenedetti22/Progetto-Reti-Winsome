@@ -97,14 +97,9 @@ public class ParamsValidator {
         if (params.length != 1) {
             return "Parametri passati non validi";
         }
-        if (!(params[0] instanceof String s)) {
-            return "Data non passata correttamente";
-        }
 
-        try {
-            dateFormat.parse(s);
-        } catch (ParseException e) {
-            return "Formato data non corretto";
+        if (!(params[0] instanceof String)) {
+            return "Dati passati non corretti";
         }
 
         return "OK";
@@ -130,7 +125,7 @@ public class ParamsValidator {
     }
 
     public static String checkCommentParams(Object[] params) {
-        if (params.length != 3) {
+        if (params.length != 2) {
             return "Parametri inviati non validi";
         }
 
@@ -138,11 +133,7 @@ public class ParamsValidator {
             return "ID Post inviato non valido";
         }
 
-        if (!(params[1] instanceof String)) {
-            return "Autore inviato non valido";
-        }
-
-        if (!(params[2] instanceof String s)) {
+        if (!(params[1] instanceof String s)) {
             return "Commento inviato non valido";
         }
 

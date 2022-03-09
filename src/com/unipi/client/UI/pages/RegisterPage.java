@@ -136,7 +136,7 @@ public class RegisterPage extends JPanel {
             WSRequest request = new WSRequest(WSRequest.WS_OPERATIONS.CREATE_USER, username, password1, tagsList);
             WSResponse response = service.performRegistration(request);
 
-            if(response.status() != WSResponse.S_STATUS.OK) {
+            if(response.code() != WSResponse.CODES.OK) {
                 JOptionPane.showMessageDialog(null, response.getBody(), "Errore",
                         JOptionPane.ERROR_MESSAGE);
                 return;
@@ -147,6 +147,15 @@ public class RegisterPage extends JPanel {
             e.printStackTrace();
             JOptionPane.showMessageDialog(null, "Errore nella connessione al Server", "Errore",
                     JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public void clearFields() {
+        usernameField.clear();
+        passwordField.clear();
+        repeatPassword.clear();
+        for (TextInputField tagInput : tags) {
+            tagInput.clear();
         }
     }
 }
