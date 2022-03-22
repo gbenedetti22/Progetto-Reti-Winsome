@@ -7,27 +7,21 @@ import com.unipi.client.mainFrame.ActionPipe;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.util.LinkedHashSet;
+import java.util.HashMap;
+import java.util.Objects;
 
 public class FollowersPage extends JPanel {
-    public enum Type {
-        FOLLOWER,
-        FOLLOWING
-    }
-
     private final Page left;
     private final Page right;
-    private LinkedHashSet<String> leftComponents;
-    private LinkedHashSet<String> rightComponents;
+    private HashMap<String, PageBanner> leftComponents;
+    private HashMap<String, PageBanner> rightComponents;
 
     public FollowersPage() {
         super(new BorderLayout());
         left = new Page(Type.FOLLOWER);
         right = new Page(Type.FOLLOWING);
-        this.leftComponents = new LinkedHashSet<>();
-        this.rightComponents = new LinkedHashSet<>();
+        this.leftComponents = new HashMap<>();
+        this.rightComponents = new HashMap<>();
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.add(left, JSplitPane.LEFT);
@@ -45,16 +39,82 @@ public class FollowersPage extends JPanel {
 
     public void appendBanner(String name, Type type) {
         if (type == Type.FOLLOWER) {
-            if (leftComponents.contains(name)) return;
+            if (leftComponents.containsKey(name)) return;
 
-            left.addFollowerBanner(name);
-            leftComponents.add(name);
+            PageBanner b = left.addFollowerBanner(name);
+            leftComponents.put(name, b);
         } else {
-            if (rightComponents.contains(name)) return;
+            if (rightComponents.containsKey(name)) return;
 
-            right.addFollowerBanner(name);
-            rightComponents.add(name);
+            PageBanner b = right.addFollowerBanner(name);
+            rightComponents.put(name, b);
         }
+    }
+
+    public void addRight(PageBanner banner) {
+        if (rightComponents.containsKey(banner.getUsername())) return;
+
+        right.addFollowerBanner(banner);
+        rightComponents.put(banner.getUsername(), banner);
+    }
+
+    public void addLeft(PageBanner banner) {
+        if (leftComponents.containsKey(banner.getUsername())) return;
+
+        left.addFollowerBanner(banner);
+        leftComponents.put(banner.getUsername(), banner);
+    }
+
+    public void removeFromLeft(PageBanner banner) {
+        if (!leftComponents.containsKey(banner.getUsername())) return;
+
+        left.removeBanner(banner);
+        leftComponents.remove(banner.getUsername());
+    }
+
+    public void removeFromRight(PageBanner banner) {
+        if (!rightComponents.containsKey(banner.getUsername())) return;
+
+        right.removeBanner(banner);
+        rightComponents.remove(banner.getUsername());
+    }
+
+    public void removeFromLeft(String username) {
+        if (!leftComponents.containsKey(username)) return;
+
+        left.removeBanner(leftComponents.get(username));
+        leftComponents.remove(username);
+    }
+
+    public void removeFromRight(String username) {
+        if (!rightComponents.containsKey(username)) return;
+
+        right.removeBanner(rightComponents.get(username));
+        rightComponents.remove(username);
+    }
+
+    public PageBanner getFromLeft(String username) {
+        return leftComponents.get(username);
+    }
+
+    public PageBanner getFromRight(String username) {
+        return rightComponents.get(username);
+    }
+
+    public PageBanner newBanner(String username, Type type) {
+        return new PageBanner(username, type);
+    }
+
+    public void clear() {
+        left.clear();
+        right.clear();
+        leftComponents.clear();
+        rightComponents.clear();
+    }
+
+    public enum Type {
+        FOLLOWER,
+        FOLLOWING
     }
 
     private class Page extends JPanel {
@@ -88,42 +148,50 @@ public class FollowersPage extends JPanel {
 
         public void removeBanner(PageBanner comp) {
             rootPanel.remove(comp);
+            rootPanel.revalidate();
+            rootPanel.repaint();
         }
 
-        public void addFollowerBanner(String name) {
+        public PageBanner addFollowerBanner(String name) {
             rootPanel.remove(magicComponent);
 
-            PageBanner pageBanner = new PageBanner(name, currentType);
-            pageBanner.setPreferredSize(new Dimension(100, 65));
+            PageBanner banner = new PageBanner(name, currentType);
+            banner.setPreferredSize(new Dimension(100, 65));
 
-            rootPanel.add(pageBanner);
+            rootPanel.add(banner);
             rootPanel.add(magicComponent);
+            return banner;
         }
 
         private void addFollowerBanner(PageBanner banner) {
             rootPanel.remove(magicComponent);
+
+            banner.setPreferredSize(new Dimension(100, 65));
             rootPanel.add(banner);
             rootPanel.add(magicComponent);
         }
+
+        public void clear() {
+            rootPanel.removeAll();
+        }
     }
 
-    private class PageBanner extends UserBanner implements MouseListener {
+    public class PageBanner extends UserBanner {
+        private String username;
         private Type currentType;
         private LinkLabel actionLabel;
-        private MouseListener currentMouseAction;
 
         public PageBanner(String username, Type type) {
             super(username);
 
             this.currentType = type;
+            this.username = username;
             actionLabel = getActionLabel();
 
             if (type == Type.FOLLOWER)
-                setAsFollower();
+                doFollow();
             else
-                setAsFollowing();
-
-            actionLabel.addMouseListener(new PageBanner());
+                doUnfollow();
         }
 
         public PageBanner() {
@@ -134,65 +202,37 @@ public class FollowersPage extends JPanel {
             return currentType;
         }
 
-        public void setAsFollowing() {
-            actionLabel.setText("<html><u>Unfollow</u></html>");
-            if (currentMouseAction != null)
-                actionLabel.removeMouseListener(currentMouseAction);
+        @Override
+        public String getUsername() {
+            return username;
+        }
 
-            currentMouseAction = actionLabel.addOnMouseClick(() -> ActionPipe.performAction(ACTIONS.UNFOLLOW_ACTION, getUsername()));
+        public void doUnfollow() {
+            actionLabel.setText("<html><u>Unfollow</u></html>");
+
+            actionLabel.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.UNFOLLOW_ACTION, getUsername()));
             currentType = Type.FOLLOWING;
         }
 
-        public void setAsFollower() {
+        public void doFollow() {
             actionLabel.setText("<html><u>Follow</u></html>");
-            if (currentMouseAction != null)
-                actionLabel.removeMouseListener(currentMouseAction);
 
-            currentMouseAction = actionLabel.addOnMouseClick(() -> ActionPipe.performAction(ACTIONS.FOLLOW_ACTION, getUsername()));
+            actionLabel.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.FOLLOW_ACTION, getUsername()));
             currentType = Type.FOLLOWER;
         }
 
         @Override
-        public void mouseClicked(MouseEvent e) {
-            JLabel label = (JLabel) e.getSource();
-            PageBanner banner = (PageBanner) label.getParent();
-
-            if (banner.userType() == Type.FOLLOWER) {
-                banner.setAsFollowing();
-
-                leftComponents.remove(banner.getUsername());
-                left.removeBanner(banner);
-                left.revalidate();
-                left.repaint();
-
-                rightComponents.add(banner.getUsername());
-                right.addFollowerBanner(banner);
-            } else if (banner.userType() == Type.FOLLOWING) {
-                rightComponents.remove(banner.getUsername());
-                right.removeBanner(banner);
-                right.revalidate();
-                right.repaint();
-            }
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            if (!super.equals(o)) return false;
+            PageBanner banner = (PageBanner) o;
+            return username.equals(banner.username);
         }
 
         @Override
-        public void mousePressed(MouseEvent e) {
-
-        }
-
-        @Override
-        public void mouseReleased(MouseEvent e) {
-
-        }
-
-        @Override
-        public void mouseEntered(MouseEvent e) {
-
-        }
-
-        @Override
-        public void mouseExited(MouseEvent e) {
-
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), username);
         }
     }
 }

@@ -1,7 +1,6 @@
 package com.unipi.client.mainFrame;
 
 import java.io.BufferedReader;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -9,7 +8,7 @@ import java.net.URL;
 public class RandomORG {
     private URL url;
 
-    public RandomORG(){
+    public RandomORG() {
         try {
             String URL = "https://www.random.org/integers/?num=1&min=1&max=100&col=1&base=10&format=plain&rnd=new";
             url = new URL(URL);
@@ -18,13 +17,13 @@ public class RandomORG {
         }
     }
 
-    public int getRandomNumber(){
+    public int getRandomNumber() {
         try {
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             connection.connect();
 
-            if(connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+            if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 String number = reader.readLine();
                 reader.close();
@@ -33,7 +32,7 @@ public class RandomORG {
             }
 
             connection.disconnect();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 

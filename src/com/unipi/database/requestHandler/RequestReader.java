@@ -3,18 +3,25 @@ package com.unipi.database.requestHandler;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.unipi.common.Console;
+import com.unipi.common.SimpleComment;
 import com.unipi.database.Database;
 import com.unipi.database.DatabaseMain;
+import com.unipi.database.EntriesStorage;
 import com.unipi.database.graph.graphNodes.Node;
+import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Post;
+import com.unipi.database.tables.User;
 import com.unipi.database.utility.ThreadWorker;
-import com.unipi.utility.channelsio.PipedSelector;
 import com.unipi.utility.channelsio.ConcurrentChannelReceiver;
+import com.unipi.utility.channelsio.PipedSelector;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.util.*;
 
 public class RequestReader implements Runnable {
@@ -45,7 +52,7 @@ public class RequestReader implements Runnable {
 
         try {
             String message = in.receiveLine();
-            if(message == null) {
+            if (message == null) {
                 socket.close();
                 return;
             }
@@ -53,7 +60,7 @@ public class RequestReader implements Runnable {
             if (print)
                 System.out.println(message);
 
-            if(!message.isEmpty())
+            if (!message.isEmpty())
                 processRequest(message);
 
             selector.enqueue(socket, SelectionKey.OP_WRITE, response);
@@ -75,9 +82,11 @@ public class RequestReader implements Runnable {
             case "UNFOLLOW" -> unfollowUser(record[1]);
             case "CREATE POST" -> publishPost(record[1]);
             case "GET POST" -> getPost(record[1]);
+            case "OPEN REWIN" -> getRewin(record[1]);
             case "GET ALL POSTS OF" -> getAllPostsOf(record[1]);
             case "GET FRIENDS POSTS OF" -> getAllFriendsPosts(record[1]);
             case "GET FRIENDS POST FROM DATE" -> getLatestFriendsPostsOf(record[1]);
+            case "GET COMMENTS FROM DATE" -> getLatestComments(record[1]);
             case "REWIN" -> rewin(record[1]);
             case "REMOVE REWIN" -> removeRewin(record[1]);
             case "COMMENT" -> addComment(record[1]);
@@ -85,12 +94,12 @@ public class RequestReader implements Runnable {
             case "DISLIKE" -> addDislike(record[1]);
             case "REMOVE POST" -> removePost(record[1]);
             case "PULL NEW ENTRIES" -> getLatestEntries();
+            case "UPDATE" -> updateUser(record[1]);
+            case "GET TRANSACTIONS" -> getTransactions(record[1]);
             case "STOP", "QUIT", "EXIT", "CLOSE" -> DatabaseMain.stop();
             default -> {
             }
         }
-
-        database.save();
     }
 
     //CREATE USER: USERNAME PASSWORD [TAGS1, TAGS2, ...]
@@ -100,9 +109,9 @@ public class RequestReader implements Runnable {
         String password = data[1].trim();
         String[] tags = data[2].replace("[", "").replace("]", "").split(",");
 
-        boolean inserted = database.createUser(username, password, List.of(tags));
+        String code = database.createUser(username, password, List.of(tags));
 
-        response = new Packet(Packet.FUNCTION.CREATE_USER, inserted ? "OK" : "USER ALREADY EXIST");
+        response = new Packet(Packet.FUNCTION.CREATE_USER, code);
     }
 
     //FIND USER: USERNAME PASSWORD
@@ -113,28 +122,28 @@ public class RequestReader implements Runnable {
 
         Set<Node> set = database.getTagsIf(username, password);
 
-        response = new Packet(Packet.FUNCTION.CHECK_IF_EXIST, set);
+        response = new Packet(Packet.FUNCTION.CHECK_IF_EXIST, set != null ? set : "206");
     }
 
     //GET FRIENDS BY TAG: USERNAME
     public void discoverFriendsByTag(String username) {
         Set<Node> set = database.getUsersByTag(username);
 
-        response = new Packet(Packet.FUNCTION.DISCOVER, set);
+        response = new Packet(Packet.FUNCTION.DISCOVER, set != null ? set : "207");
     }
 
     //GET FOLLOWERS OF: USERNAME
     public void getFollowersOf(String username) {
         Set<String> set = database.getFollowersOf(username.trim());
 
-        response = new Packet(Packet.FUNCTION.GET_FOLLOWERS, set);
+        response = new Packet(Packet.FUNCTION.GET_FOLLOWERS, set != null ? set : "207");
     }
 
     //GET FOLLOWING OF: USERNAME
     public void getFollowingOf(String username) {
         Set<String> set = database.getFollowingOf(username);
 
-        response = new Packet(Packet.FUNCTION.GET_FOLLOWING, set);
+        response = new Packet(Packet.FUNCTION.GET_FOLLOWING, set != null ? set : "207");
     }
 
     //FOLLOW: USERNAME USER
@@ -143,9 +152,9 @@ public class RequestReader implements Runnable {
         String u1 = data[0];
         String u2 = data[1];
 
-        boolean followed = database.followUser(u1, u2);
+        String code = database.followUser(u1, u2);
 
-        response = new Packet(Packet.FUNCTION.FOLLOW, followed ? "OK" : "ALREADY FOLLLOWING");
+        response = new Packet(Packet.FUNCTION.FOLLOW, code);
     }
 
     //UNFOLLOW: USERNAME USER
@@ -154,9 +163,9 @@ public class RequestReader implements Runnable {
         String u1 = data[0].trim();
         String u2 = data[1].trim();
 
-        boolean unfollowed = database.unfollowUser(u1, u2);
+        String code = database.unfollowUser(u1, u2);
 
-        response = new Packet(Packet.FUNCTION.UNFOLLOW, unfollowed ? "OK" : "NOT FOLLLOWING");
+        response = new Packet(Packet.FUNCTION.UNFOLLOW, code);
     }
 
     //CREATE POST: AUTHOR TITLE CONTENT
@@ -166,9 +175,13 @@ public class RequestReader implements Runnable {
         String title = data[1].trim();
         String content = data[2].trim();
 
+        title = new String(Base64.getDecoder().decode(title), StandardCharsets.UTF_8);
+        content = new String(Base64.getDecoder().decode(content), StandardCharsets.UTF_8);
+        Console.log("[DECODED]", title, content);
+
         Post p = database.createPost(author, title, content);
 
-        response = new Packet(Packet.FUNCTION.CREATE_POST, p);
+        response = new Packet(Packet.FUNCTION.CREATE_POST, p != null ? p : "207");
     }
 
     //GET POST: USERNAME IDPOST
@@ -179,40 +192,66 @@ public class RequestReader implements Runnable {
 
         HashMap<String, Object> map = database.viewFriendPost(whoWantToView, UUID.fromString(idPost));
 
-        response = new Packet(Packet.FUNCTION.VIEW_POST, map);
+        response = new Packet(Packet.FUNCTION.VIEW_POST, map != null ? (map.isEmpty() ? "215" : map) : "208");
+    }
+
+    //OPEN REWIN: AUTHOR IDPOST
+    public void getRewin(String record) {
+        String[] data = record.trim().split(" ", 2);
+        String author = data[0].trim();
+        String idPost = data[1].trim();
+
+        HashMap<String, Object> map = database.openRewin(author, UUID.fromString(idPost));
+
+        response = new Packet(Packet.FUNCTION.OPEN_REWIN, map != null ? (map.isEmpty() ? "216" : map) : "208");
     }
 
     //GET ALL POSTS OF: USERNAME
     public void getAllPostsOf(String username) {
         Set<Node> set = database.getAllPostsOf(username);
 
-        response = new Packet(Packet.FUNCTION.GET_ALL_POSTS, set);
+        response = new Packet(Packet.FUNCTION.GET_ALL_POSTS, set != null ? set : "207");
+    }
+
+    //GET COMMENTS FROM DATE: IDPOST DATE
+    public void getLatestComments(String record) {
+        String[] data = record.split(" ", 2);
+        UUID idPost = UUID.fromString(data[0]);
+        String date = data[1];
+
+        try {
+            Set<SimpleComment> set = database.getCommentsFromDate(idPost, date);
+            response = new Packet(Packet.FUNCTION.GET_LATEST_COMMENTS, set != null ? set : "207");
+        } catch (ParseException e) {
+            response = new Packet(Packet.FUNCTION.GET_LATEST_COMMENTS, "204");
+        }
     }
 
     //GET FRIENDS POSTS OF: USERNAME
     public void getAllFriendsPosts(String username) {
         Map<String, Set<Node>> map = database.getFriendsPostsOf(username);
 
-        response = new Packet(Packet.FUNCTION.FRIENDS_POSTS, map);
+        response = new Packet(Packet.FUNCTION.FRIENDS_POSTS, map != null ? map : "207");
     }
 
-    //GET FRIENDS POST FROM DATE: USERNAME JSON
-    private Type mapType = new TypeToken<HashMap<String, String>>(){}.getType();
+    //GET FRIENDS POST FROM DATE: USERNAME DATEMAP
     public void getLatestFriendsPostsOf(String record) {
         String[] data = record.split(" ", 2);
         String username = data[0];
         String json = data[1];
 
+        Type mapType = new TypeToken<HashMap<String, String>>() {
+        }.getType();
         HashMap<String, String> dateMap = new Gson().fromJson(json, mapType);
         Map<String, Set<Node>> posts;
         try {
             posts = database.getLatestFriendsPostsOf(username, dateMap);
         } catch (JsonSyntaxException e) {
-            response = new Packet(Packet.FUNCTION.GET_LATEST_POST, "Map error: " + dateMap);
+            response = new Packet(Packet.FUNCTION.GET_LATEST_POST, "204");
             return;
         }
 
-        response = new Packet(Packet.FUNCTION.GET_LATEST_POST, posts);
+        response = new Packet(Packet.FUNCTION.GET_LATEST_POST, posts != null ? posts : "207");
     }
 
     //REWIN: USERNAME IDPOST
@@ -221,10 +260,9 @@ public class RequestReader implements Runnable {
         String username = data[0].trim();
         String idPost = data[1].trim();
 
-        boolean rewinned = database.rewinFriendsPost(username, UUID.fromString(idPost));
+        String code = database.rewinFriendsPost(username, UUID.fromString(idPost));
 
-        //TODO: modifcare i casi di errore
-        response = new Packet(Packet.FUNCTION.REWIN, rewinned ? "OK" : "NOT FOLLOWING");
+        response = new Packet(Packet.FUNCTION.REWIN, code);
     }
 
     //REMOVE REWIN: USERNAME IDPOST
@@ -233,22 +271,27 @@ public class RequestReader implements Runnable {
         String username = data[0].trim();
         String idPost = data[1].trim();
 
-        boolean rewinned = database.removeRewin(username, UUID.fromString(idPost));
+        String code = database.removeRewin(username, UUID.fromString(idPost));
 
-        response = new Packet(Packet.FUNCTION.REMOVE_REWIN, rewinned ? "OK" : "NOT EXIST");
+        response = new Packet(Packet.FUNCTION.REMOVE_REWIN, code);
     }
 
-    //COMMENT: USERNAME IDPOST AUTHOR CONTENT
+    //COMMENT: IDPOST AUTHOR CONTENT
     public void addComment(String record) {
-        String[] data = record.trim().split(" ", 4);
-        String username = data[0].trim();
-        String idPost = data[1].trim();
-        String author = data[2].trim();
-        String content = data[3].trim();
+        String[] data = record.trim().split(" ", 3);
+        String idPost = data[0].trim();
+        String author = data[1].trim();
+        String content = data[2].trim();
 
-        boolean added = database.appendComment(username, UUID.fromString(idPost), author, content);
+        Comment c;
+        try {
+            c = database.appendComment(UUID.fromString(idPost), author, content);
+        }catch (UnsupportedOperationException e) {
+            response = new Packet(Packet.FUNCTION.COMMENT, "217");
+            return;
+        }
 
-        response = new Packet(Packet.FUNCTION.COMMENT, added ? "OK" : "POST NOT EXIST");
+        response = new Packet(Packet.FUNCTION.COMMENT, c != null ? c : "210");
     }
 
     //LIKE: USERNAME IDPOST
@@ -257,9 +300,9 @@ public class RequestReader implements Runnable {
         String username = data[0].trim();
         String idPost = data[1].trim();
 
-        boolean added = database.appendLike(username, UUID.fromString(idPost));
+        String code = database.appendLike(username, UUID.fromString(idPost));
 
-        response = new Packet(Packet.FUNCTION.LIKE, added ? "OK" : "NOT EXIST");
+        response = new Packet(Packet.FUNCTION.LIKE, code);
     }
 
     //DISLIKE: USERNAME IDPOST
@@ -268,9 +311,9 @@ public class RequestReader implements Runnable {
         String username = data[0].trim();
         String idPost = data[1].trim();
 
-        boolean added = database.appendDislike(username, UUID.fromString(idPost));
+        String code = database.appendDislike(username, UUID.fromString(idPost));
 
-        response = new Packet(Packet.FUNCTION.DISLIKE, added ? "OK" : "NOT EXIST");
+        response = new Packet(Packet.FUNCTION.DISLIKE, code);
     }
 
     //REMOVE POST: USERNAME IDPOST
@@ -279,15 +322,87 @@ public class RequestReader implements Runnable {
         String username = data[0].trim();
         String idPost = data[1].trim();
 
-        boolean removed = database.removePost(username, UUID.fromString(idPost));
+        String code = database.removePost(username, UUID.fromString(idPost));
 
-        response = new Packet(Packet.FUNCTION.REMOVE_POST, removed ? "OK" : "NOT EXIST");
+        response = new Packet(Packet.FUNCTION.REMOVE_POST, code);
     }
 
     //PULL NEW ENTRIES
     public void getLatestEntries() {
-        Set<Node> set = database.pullNewEntries();
+        ArrayList<EntriesStorage.Entry> list = database.pullNewEntries();
 
-        response = new Packet(Packet.FUNCTION.PULL_ENTRIES, set);
+        response = new Packet(Packet.FUNCTION.PULL_ENTRIES, list);
+    }
+
+    //UPDATE: user value date
+    //UPDATE: [a, b, c ...] value date
+    private void updateUser(String s) {
+        if (s.startsWith("[")) {
+            String array = s.substring(0, s.indexOf(']') + 1);
+            String[] data = s.substring(s.indexOf(']') + 1).trim().split(" ", 2);
+
+            String coins = data[0];
+            String date = data[1];
+            try {
+                Database.getDateFormat().getSimpleDateFormat().parse(date);
+            } catch (ParseException e) {
+                e.printStackTrace();
+                response = new Packet(Packet.FUNCTION.UPDATE_USER, "204");
+                return;
+            }
+
+            String[] users = array.replace("[", "").replace("]", "").split(",");
+            StringBuilder sb = new StringBuilder();
+            for (String user : users) {
+                User u = database.getUser(user.trim());
+                if (u != null) {
+                    u.addTransaction(coins, date);
+                    continue;
+                }
+
+                sb.append(user).append(" ");
+            }
+
+            if (!sb.isEmpty()) {
+                response = new Packet(Packet.FUNCTION.UPDATE_USER, sb.toString().trim());
+                return;
+            }
+
+            response = new Packet(Packet.FUNCTION.UPDATE_USER, "200");
+            return;
+        }
+
+        String[] data = s.split(" ", 3);
+        String user = data[0];
+        String coins = data[1];
+        String date = data[2];
+
+        try {
+            Database.getDateFormat().getSimpleDateFormat().parse(date);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            response = new Packet(Packet.FUNCTION.UPDATE_USER, "204");
+            return;
+        }
+
+        User u = database.getUser(user);
+        if (u != null) {
+            u.addTransaction(coins, date);
+            response = new Packet(Packet.FUNCTION.UPDATE_USER, "200");
+            return;
+        }
+
+        response = new Packet(Packet.FUNCTION.UPDATE_USER, "207");
+    }
+
+    //GET TRANSACTIONS: user
+    private void getTransactions(String s) {
+        User u = database.getUser(s);
+        if (u != null) {
+            response = new Packet(Packet.FUNCTION.GET_TRANSACTIONS, u.getTransactions());
+            return;
+        }
+
+        response = new Packet(Packet.FUNCTION.GET_TRANSACTIONS, "207");
     }
 }

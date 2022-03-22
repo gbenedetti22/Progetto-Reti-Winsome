@@ -1,10 +1,10 @@
 package com.unipi.database;
 
-import com.unipi.utility.channelsio.PipedSelector;
 import com.unipi.database.requestHandler.Packet;
 import com.unipi.database.requestHandler.RequestReader;
 import com.unipi.database.requestHandler.RequestWriter;
 import com.unipi.database.utility.ThreadWorker;
+import com.unipi.utility.channelsio.PipedSelector;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -29,15 +29,33 @@ public class DatabaseMain {
     private static boolean running = true;
     private static int port = 45675;
     private static boolean debug = false;
+    private static String delay = "5m";
 
     public static void main(String[] args) {
         readArgs(args);
+        database.startSaving(delay);
 
         try {
             ServerSocketChannel server = ServerSocketChannel.open();
             server.socket().bind(new InetSocketAddress(port));
 
             selector.insert(server, SelectionKey.OP_ACCEPT);
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    System.out.println("Chiusura Database..");
+                    database.close();
+
+                    System.out.println("Chiusura connessioni...");
+                    server.close();
+                    selector.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                System.out.println("Bye bye :)");
+
+            }));
 
             System.out.println(running ? "Database Online" : "");
             System.out.println();
@@ -94,10 +112,6 @@ public class DatabaseMain {
         for (String s : args) {
             switch (s.toLowerCase()) {
                 case "--clear" -> clearDatabase();
-                case "--clear-only" -> {
-                    clearDatabase();
-                    stop();
-                }
                 case "--debug" -> debug = true;
                 default -> {
                     if (s.startsWith("port")) {
@@ -108,6 +122,15 @@ public class DatabaseMain {
                         } catch (NumberFormatException e) {
                             System.err.println(insertedPort + ": non è una porta valida");
                             stop();
+                        }
+                    }
+
+                    if(s.startsWith("delay")) {
+                        try {
+                            delay = s.split("=", 2)[1];
+                        }catch (Exception e) {
+                            System.err.println("Inserito comando errato, verrà usato il valore di default");
+                            delay = "5m";
                         }
                     }
                 }
@@ -157,7 +180,7 @@ public class DatabaseMain {
         }
     }
 
-    public static Database getDatabase(){
+    public static Database getDatabase() {
         return database;
     }
 }

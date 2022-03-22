@@ -7,12 +7,12 @@ public class ActionPipe {
     private static boolean closed = false;
 
     public static ACTIONS waitForAction() {
-        if(closed) return ACTIONS.CLOSE_ACTION;
+        if (closed) return ACTIONS.CLOSE_ACTION;
 
         currentAction = ACTIONS.NONE;
 
-        synchronized (key){
-            while (currentAction == ACTIONS.NONE){
+        synchronized (key) {
+            while (currentAction == ACTIONS.NONE) {
                 try {
                     key.wait();
                 } catch (InterruptedException e) {
@@ -29,7 +29,7 @@ public class ActionPipe {
     }
 
     public static void performAction(ACTIONS action, Object param) {
-        synchronized (key){
+        synchronized (key) {
             currentAction = action;
             key.notify();
         }
@@ -37,11 +37,11 @@ public class ActionPipe {
         obj = param;
     }
 
-    public static void performAction(ACTIONS action){
+    public static void performAction(ACTIONS action) {
         performAction(action, null);
     }
 
-    public static void closeActionPipe(){
+    public static void closeActionPipe() {
         synchronized (key) {
             currentAction = ACTIONS.CLOSE_ACTION;
             closed = true;

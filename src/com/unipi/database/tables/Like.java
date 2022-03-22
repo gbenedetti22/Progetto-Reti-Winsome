@@ -2,21 +2,16 @@ package com.unipi.database.tables;
 
 import com.unipi.common.SimpleLike;
 
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 
-public class Like {
-    public enum type {
-        LIKE,
-        DISLIKE
-    }
-
+public class Like implements Serializable {
     private final UUID idLike;
     private final UUID idPost;
     private final String username; //chi ha messo il like
     private type type;
     private transient long linePosition;
-
     public Like(UUID idPost, Like.type type, String username) {
         this.idPost = idPost;
         this.type = type;
@@ -30,12 +25,12 @@ public class Like {
         return idPost;
     }
 
-    public void setType(Like.type type) {
-        this.type = type;
-    }
-
     public Like.type getType() {
         return type;
+    }
+
+    public void setType(Like.type type) {
+        this.type = type;
     }
 
     public String getUsername() {
@@ -66,7 +61,6 @@ public class Like {
                 '}';
     }
 
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -78,5 +72,10 @@ public class Like {
     @Override
     public int hashCode() {
         return Objects.hash(idLike);
+    }
+
+    public enum type {
+        LIKE,
+        DISLIKE
     }
 }

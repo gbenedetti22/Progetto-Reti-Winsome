@@ -28,6 +28,7 @@ public class RegisterPage extends JPanel {
     private PasswordField repeatPassword;
     private ArrayList<TextInputField> tags;
     private RegistrationService service;
+    private Registry registry;
 
     public RegisterPage() {
         super(new BorderLayout());
@@ -49,7 +50,7 @@ public class RegisterPage extends JPanel {
 
         HashMap<ClientProperties.NAMES, Object> props = ClientProperties.getValues();
         try {
-            Registry registry = LocateRegistry.getRegistry((String) props.get(RMI_ADDRESS), (int) props.get(RMI_REG_PORT));
+            registry = LocateRegistry.getRegistry((String) props.get(RMI_ADDRESS), (int) props.get(RMI_REG_PORT));
             this.service = (RegistrationService) registry.lookup("REGISTER-SERVICE");
         } catch (RemoteException | NotBoundException e) {
             e.printStackTrace();
@@ -114,7 +115,7 @@ public class RegisterPage extends JPanel {
                 return;
             }
 
-            if(!password1.equals(password2)){
+            if (!password1.equals(password2)) {
                 JOptionPane.showMessageDialog(null, "Le password non corrispondono", "Errore",
                         JOptionPane.ERROR_MESSAGE);
                 return;
@@ -123,11 +124,11 @@ public class RegisterPage extends JPanel {
             ArrayList<String> tagsList = new ArrayList<>(5);
             for (TextInputField input : tags) {
                 String tag = input.getText();
-                if(!tag.isEmpty()) {
+                if (!tag.isEmpty()) {
                     tagsList.add(tag);
                 }
             }
-            if(tagsList.isEmpty()) {
+            if (tagsList.isEmpty()) {
                 JOptionPane.showMessageDialog(null, "Devi inserire al più un tag", "Errore",
                         JOptionPane.ERROR_MESSAGE);
                 return;
@@ -136,7 +137,7 @@ public class RegisterPage extends JPanel {
             WSRequest request = new WSRequest(WSRequest.WS_OPERATIONS.CREATE_USER, username, password1, tagsList);
             WSResponse response = service.performRegistration(request);
 
-            if(response.code() != WSResponse.CODES.OK) {
+            if (response.code() != WSResponse.CODES.OK) {
                 JOptionPane.showMessageDialog(null, response.getBody(), "Errore",
                         JOptionPane.ERROR_MESSAGE);
                 return;

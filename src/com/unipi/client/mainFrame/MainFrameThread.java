@@ -3,21 +3,19 @@ package com.unipi.client.mainFrame;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.unipi.client.LocalStorage;
-import com.unipi.client.Pages;
-import com.unipi.client.ServiceManager;
+import com.unipi.client.*;
 import com.unipi.client.UI.banners.CommentBanner;
 import com.unipi.client.UI.banners.PostBanner;
 import com.unipi.client.UI.banners.UserBanner;
 import com.unipi.client.UI.pages.*;
-import com.unipi.common.Console;
-import com.unipi.common.SimplePost;
+import com.unipi.common.*;
 import com.unipi.server.RMI.FollowersService;
 import com.unipi.server.requestHandler.WSRequest;
 import com.unipi.server.requestHandler.WSResponse;
 
 import javax.swing.*;
-import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
@@ -28,16 +26,16 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.List;
 import java.util.*;
 
 import static com.unipi.client.mainFrame.ClientProperties.NAMES.*;
+import static com.unipi.client.mainFrame.MainFrame.showErrorMessage;
+import static com.unipi.client.mainFrame.MainFrame.showSuccessMessage;
 import static com.unipi.server.requestHandler.WSRequest.WS_OPERATIONS;
 
 public class MainFrameThread extends Thread {
     private final MainFrame frame;
     private final Gson gson;
-    private SocketChannel socket;
     private FollowersService followersService;
     private LocalStorage storage;
     private ServiceManager serviceManager;
@@ -50,7 +48,7 @@ public class MainFrameThread extends Thread {
         setName("Main-Frame-Thread");
 
         HashMap<ClientProperties.NAMES, Object> props = ClientProperties.getValues();
-        socket = SocketChannel.open(new InetSocketAddress((String) props.get(SERVER_ADDRESS), (int) props.get(DEFUALT_TCP_PORT)));
+        SocketChannel socket = SocketChannel.open(new InetSocketAddress((String) props.get(SERVER_ADDRESS), (int) props.get(DEFUALT_TCP_PORT)));
         socket.configureBlocking(true);
 
         Registry registry = LocateRegistry.getRegistry((String) props.get(RMI_ADDRESS), (int) props.get(RMI_FOLLOW_PORT));
@@ -59,12 +57,30 @@ public class MainFrameThread extends Thread {
         this.serviceManager = new ServiceManager(socket);
         serviceManager.start();
 
-        gson = new GsonBuilder().setDateFormat("dd/MM/yy - hh:mm:ss").create();
+        gson = new GsonBuilder().setDateFormat("dd/MM/yy - HH:mm:ss").create();
+
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                try {
+                    System.out.println("Chiusura servizi...");
+                    socket.close();
+                    serviceManager.close();
+                    if (storage.getCurrentUsername() != null)
+                        followersService.unregister(storage.getCurrentUsername());
+
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+
+                System.out.println("Chiusura ActionPipe...");
+                ActionPipe.closeActionPipe();
+            }
+        });
     }
 
     @Override
     public void run() {
-
         while (!interrupted()) {
             ACTIONS action = ActionPipe.waitForAction();
 
@@ -81,8 +97,7 @@ public class MainFrameThread extends Thread {
                 }
                 case PUBLISH_ACTION -> performPublishPost();
                 case PROFILE_ACTION -> performViewProfile();
-                case LOGOUT_ACTION -> {
-                }
+                case LOGOUT_ACTION -> performLogout();
                 case FOLLOWERS_PAGE_ACTION -> performViewFollowPage();
                 case DISCOVER_ACTION -> performDiscover();
                 case FOLLOW_ACTION -> performFollow();
@@ -92,17 +107,48 @@ public class MainFrameThread extends Thread {
                 case PUBLISH_COMMENT_ACTION -> performPublishComment();
                 case DELETE_POST_ACTION -> performDeletePost();
                 case VIEW_POST_ACTION -> performViewPost();
+                case GET_LATEST_COMMENTS -> performGetLatestComments();
                 case RETWEET_ACTION -> performRewin();
-                case CLOSE_ACTION -> {
-                }
+                case CLOSE_ACTION -> interrupt();
             }
         }
+    }
+
+    private void performGetLatestComments() {
+        if(frame.getCurrentPage() instanceof PostPage page) {
+            CommentsPage commentsPage = (CommentsPage) ActionPipe.getParameter();
+
+            String id = page.getId();
+            String date;
+            try {
+                date = commentsPage.getComments().first().getDate();
+            }catch (NoSuchElementException e) {
+                date = "0";
+            }
+
+            WSRequest request = new WSRequest(WS_OPERATIONS.GET_COMMENTS_FROM_DATE, id, date);
+            serviceManager.submitRequest(request);
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            Type type = new TypeToken<TreeSet<SimpleComment>>(){}.getType();
+            String json = response.getBody();
+            Console.log(json);
+            TreeSet<SimpleComment> set = gson.fromJson(json, type);
+            commentsPage.addAll(set);
+            commentsPage.open();
+        }
+
     }
 
     private void performRewin() {
         if (frame.getCurrentPage() instanceof HomePage) {
             PostBanner banner = (PostBanner) ActionPipe.getParameter();
             String id = banner.getID();
+
             WSRequest request = new WSRequest(WS_OPERATIONS.REWIN, id);
             serviceManager.submitRequest(request);
             WSResponse response = serviceManager.getResponse();
@@ -120,7 +166,7 @@ public class MainFrameThread extends Thread {
     }
 
     private void performDislike() {
-        if(frame.getCurrentPage() instanceof PostPage page) {
+        if (frame.getCurrentPage() instanceof PostPage page) {
             String id = page.getId();
             WSRequest request = new WSRequest(WS_OPERATIONS.DISLIKE, id);
             serviceManager.submitRequest(request);
@@ -130,12 +176,16 @@ public class MainFrameThread extends Thread {
                 return;
             }
 
+            String bodyMessage = response.getBody();
+            if(bodyMessage.equals("CHANGED LIKE"))
+                page.setLikeSetted(true);
+
             page.addDislike();
         }
     }
 
     private void performLike() {
-        if(frame.getCurrentPage() instanceof PostPage page) {
+        if (frame.getCurrentPage() instanceof PostPage page) {
             String id = page.getId();
             WSRequest request = new WSRequest(WS_OPERATIONS.LIKE, id);
             serviceManager.submitRequest(request);
@@ -145,6 +195,10 @@ public class MainFrameThread extends Thread {
                 return;
             }
 
+            String bodyMessage = response.getBody();
+            if(bodyMessage.equals("CHANGED LIKE"))
+                page.setDislikeSetted(true);
+
             page.addLike();
         }
     }
@@ -152,15 +206,15 @@ public class MainFrameThread extends Thread {
     private void performPublishComment() {
         CommentsPage page = (CommentsPage) ActionPipe.getParameter();
         String id = page.getPost().getId();
-        String comment = page.getInputText();
+        String commentText = page.getInputText();
         page.clearField();
 
-        if (comment.isBlank()) {
+        if (commentText.isBlank()) {
             showErrorMessage("Il contenuto del commento non può essere vuoto");
             return;
         }
 
-        WSRequest request = new WSRequest(WS_OPERATIONS.COMMENT, id, comment);
+        WSRequest request = new WSRequest(WS_OPERATIONS.COMMENT, id, commentText);
         serviceManager.submitRequest(request);
         WSResponse response = serviceManager.getResponse();
         if (response.code() != WSResponse.CODES.OK) {
@@ -168,50 +222,91 @@ public class MainFrameThread extends Thread {
             return;
         }
 
-        page.addComment(new CommentBanner(storage.getCurrentUsername(), comment));
+        String json = response.getBody();
+        SimpleComment c = gson.fromJson(json, SimpleComment.class);
+
+        page.addComment(new CommentBanner(c.getId(), c.getAuthor(), c.getContent(), c.getDate()));
     }
 
-    @SuppressWarnings("unchecked")
     private void performViewPost() {
-        String id = (String) ActionPipe.getParameter();
-        WSRequest request = new WSRequest(WS_OPERATIONS.GET_POST, id);
-        serviceManager.submitRequest(request);
-        WSResponse response = serviceManager.getResponse();
-        if (response.code() != WSResponse.CODES.OK) {
-            showErrorMessage("Impossibile visualizzare questo Post! Probabilmente è stato cancellato");
+        PostBanner banner = (PostBanner) ActionPipe.getParameter();
+        if(banner.isRewin()) {
+            performOpenRewin(banner);
             return;
         }
 
-        Type type = new TypeToken<Map<String, Object>>() {
-        }.getType();
-        Map<String, Object> map = gson.fromJson(response.getBody(), type);
+        String id = banner.getID();
+        WSRequest request = new WSRequest(WS_OPERATIONS.GET_POST, id);
+        serviceManager.submitRequest(request);
+        WSResponse response = serviceManager.getResponse();
 
-        String title = (String) map.get("TITLE");
-        String content = (String) map.get("CONTENT");
-        PostPage page = Pages.newPostPage(id, title, content);
-
-        List<Map<String, String>> comments = (List<Map<String, String>>) map.get("COMMENTS");
-        int likes = (int) ((double) map.get("LIKES"));
-        int dislikes = (int) ((double) map.get("DISLIKES"));
-
-        for (Map<String, String> c : comments) {
-            page.addComment(new CommentBanner(c.get("author"), c.get("content")));
+        if (response.code() != WSResponse.CODES.OK) {
+            showErrorMessage(response.getBody());
+            Pages.HOME_PAGE.removePostIf(p -> p.getID().equals(id));
+            return;
         }
 
-        Console.log(map);
-        page.setLikes(likes);
-        page.setDislikes(dislikes);
+        String json = response.getBody();
+
+        WrapperPost post = gson.fromJson(json, WrapperPost.class);
+        PostPage page = Pages.newPostPage(id, post.TITLE, post.CONTENT);
+        page.setLikes((int) post.LIKES);
+        page.setDislikes((int) post.DISLIKES);
+
+        for (Map<String, String> c : post.COMMENTS) {
+            page.addComment(new CommentBanner(c.get("id"), c.get("author"), c.get("content"), c.get("date")));
+        }
+
+        frame.switchPage(page);
+    }
+
+    private void performOpenRewin(PostBanner banner) {
+        String id = banner.getID();
+        String author = banner.getRewin();
+        WSRequest request = new WSRequest(WS_OPERATIONS.OPEN_REWIN, author, id);
+        serviceManager.submitRequest(request);
+        WSResponse response = serviceManager.getResponse();
+
+        if (response.code() != WSResponse.CODES.OK) {
+            showErrorMessage(response.getBody());
+            Pages.HOME_PAGE.removePost(banner);
+//            Pages.HOME_PAGE.removePostIf(p -> p.getID().equals(id));
+            return;
+        }
+
+        String json = response.getBody();
+
+        WrapperPost post = gson.fromJson(json, WrapperPost.class);
+        PostPage page = Pages.newPostPage(id, post.TITLE, post.CONTENT);
+        page.setLikes((int) post.LIKES);
+        page.setDislikes((int) post.DISLIKES);
+        for (Map<String, String> c : post.COMMENTS) {
+            page.addComment(new CommentBanner(c.get("id"), c.get("author"), c.get("content"), c.get("date")));
+        }
+
         frame.switchPage(page);
     }
 
     private void performViewFollowPage() {
         FollowersPage page = Pages.FOLLOW_PAGE;
+        //la FollowersPage è suddivisa in 2 sezioni: i followers e i following
+
         for (String follow : storage.getFollowing()) {
+            //questi vanno nella sezione a destra -> posso solo unfollow
             page.appendBanner(follow, FollowersPage.Type.FOLLOWING);
         }
 
+        //Questi vanno a sinistra
         for (String followers : storage.getFollowers()) {
-            page.appendBanner(followers, FollowersPage.Type.FOLLOWING);
+            //se già sto seguendo questo utente.. -> metto unfollow
+            if(storage.getFollowing().contains(followers)) {
+                FollowersPage.PageBanner banner = page.newBanner(followers, FollowersPage.Type.FOLLOWING);
+                page.addLeft(banner);
+                continue;
+            }
+
+            //..altrimenti metto possibilità di follow
+            page.appendBanner(followers, FollowersPage.Type.FOLLOWER);
         }
 
         frame.switchPage(page);
@@ -238,14 +333,11 @@ public class MainFrameThread extends Thread {
             Console.log(response.getBody());
             profile.removePost(clickedBanner);
 
-            if(clickedBanner.isRewin()) {
+            if (clickedBanner.isRewin()) {
                 PostBanner banner = Pages.HOME_PAGE.getPostBanner(id);
-                if(clickedBanner.getRewin().equals(storage.getCurrentUsername())) {
-                    Pages.HOME_PAGE.removePost(banner);
-                }else {
-                    banner.setRewinnable(true);
-                }
+                banner.setRewinnable(true);
             }
+
             showSuccessMessage("Post eliminato con successo!");
         }
     }
@@ -268,7 +360,7 @@ public class MainFrameThread extends Thread {
             return;
         }
 
-        if (frame.getCurrentPage() instanceof FollowersPage) {
+        if (frame.getCurrentPage() instanceof FollowersPage page) {
             String username = (String) ActionPipe.getParameter();
 
             serviceManager.submitRequest(new WSRequest(WS_OPERATIONS.FOLLOW, username));
@@ -279,6 +371,11 @@ public class MainFrameThread extends Thread {
             }
 
             storage.getFollowing().add(username);
+            page.appendBanner(username, FollowersPage.Type.FOLLOWING);
+            FollowersPage.PageBanner banner = page.getFromLeft(username);
+            if(banner != null)
+                banner.doUnfollow();
+
             downloadPostOf(username);
         }
     }
@@ -304,7 +401,7 @@ public class MainFrameThread extends Thread {
             }
         }
 
-        if (frame.getCurrentPage() instanceof FollowersPage) {
+        if (frame.getCurrentPage() instanceof FollowersPage page) {
             String username = (String) ActionPipe.getParameter();
 
             serviceManager.submitRequest(new WSRequest(WS_OPERATIONS.UNFOLLOW, username));
@@ -317,6 +414,12 @@ public class MainFrameThread extends Thread {
             HomePage home = Pages.HOME_PAGE;
             home.removePostIf(p -> p.getAuthor().equals(username));
             storage.getFollowing().remove(username);
+
+            page.removeFromRight(username);
+            FollowersPage.PageBanner banner = page.getFromLeft(username);
+            if(banner != null)
+                banner.doFollow();
+
             if (!home.containsPosts()) {
                 home.showBackground();
             }
@@ -347,10 +450,12 @@ public class MainFrameThread extends Thread {
             boolean logged = executeLogin(username, password);
             if (logged) {
                 registerToRegistrationService(username);
+
                 frame.switchPage(Pages.HOME_PAGE);
                 setMyFollowing();
                 downloadMyPosts();
                 downloadPosts();
+                downloadTransactions();
             }
         }
     }
@@ -402,6 +507,11 @@ public class MainFrameThread extends Thread {
             String title = page.getNewPostTitle();
             String content = page.getNewPostContent();
 
+            if(title.isBlank() || content.isBlank()) {
+                showErrorMessage("I campi titolo e contenuto non possono essere vuoti!");
+                return;
+            }
+
             WSRequest request = new WSRequest(WS_OPERATIONS.CREATE_POST, title, content);
             serviceManager.submitRequest(request);
             WSResponse response = serviceManager.getResponse();
@@ -413,43 +523,75 @@ public class MainFrameThread extends Thread {
             String json = response.getBody();
             SimplePost post = gson.fromJson(json, SimplePost.class);
             Console.log("Creato Post con ID: " + post.getId());
+
             page.addPost(new PostBanner(post, true));
             showSuccessMessage("Post creato con successo!");
         }
     }
 
+    private void performLogout() {
+        try {
+            followersService.unregister(storage.getCurrentUsername());
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        storage.clear();
+        Pages.resetPages();
+        serviceManager.submitRequest(new WSRequest(WS_OPERATIONS.LOGOUT));
+        WSResponse response = serviceManager.getResponse();
+        if (response.code() != WSResponse.CODES.OK) {
+            MainFrame.showErrorMessage("C'è stato un errore nel disconnettersi dal Server");
+        }
 
-    private void showErrorMessage(String msg) {
-        JOptionPane.showMessageDialog(null,
-                msg,
-                "Errore", JOptionPane.ERROR_MESSAGE);
-    }
-
-    private void showSuccessMessage(String msg) {
-        ImageIcon icon = new ImageIcon("./resources/checked.png");
-        Image image = icon.getImage().getScaledInstance(45, 45, Image.SCALE_SMOOTH);
-        icon = new ImageIcon(image);
-
-        JOptionPane.showMessageDialog(null, msg, "", JOptionPane.PLAIN_MESSAGE, icon);
+        serviceManager.reconnect();
+        frame.switchPage(Pages.LOGIN_PAGE);
     }
 
     private boolean executeLogin(String username, String password) {
+        if (username.isBlank() || password.isBlank()) {
+            showErrorMessage("I campi username e password non possono essere vuoti");
+            return false;
+        }
+
         WSRequest loginRequest = new WSRequest(WSRequest.WS_OPERATIONS.FIND_USER, username, password);
         serviceManager.submitRequest(loginRequest);
         WSResponse response = serviceManager.getResponse();
         if (response.code() != WSResponse.CODES.OK) {
-            showErrorMessage("Credenziali inserite errate");
+            showErrorMessage(response.getBody());
             return false;
         }
 
-        String jsonTags = response.getBody();
-        Type listType = new TypeToken<ArrayList<String>>() {
-        }.getType();
-        ArrayList<String> tags = gson.fromJson(jsonTags, listType);
-        Pages.HOME_PAGE.setTags(tags);
+        String json = response.getBody();
+        LoginResponse logResponse = gson.fromJson(json, LoginResponse.class);
+        Console.log(logResponse);
+
+        ClientProperties.setMulticastAddress(logResponse.getMulticastAddress());
+        ClientProperties.setMulticastPort(logResponse.getMulticastPort());
+        MulticastClient multicastThread = new MulticastClient(logResponse.getMulticastAddress(), logResponse.getMulticastPort(), serviceManager, storage);
+        multicastThread.start();
+
+        System.out.println("MultivastClient avviato!");
+        Pages.HOME_PAGE.setTags(logResponse.getTags());
+
         storage.setCurrentUsername(username);
         Pages.PROFILE_PAGE.setUsername(username);
         return true;
+    }
+
+    private void downloadTransactions() {
+        WSRequest transactionsRequest = new WSRequest(WS_OPERATIONS.GET_TRANSACTIONS);
+        serviceManager.submitRequest(transactionsRequest);
+        WSResponse response = serviceManager.getResponse();
+        if (response.code() != WSResponse.CODES.OK) {
+            showErrorMessage(response.getBody());
+            return;
+        }
+
+        Type type = new TypeToken<LinkedList<WinsomeTransaction>>() {
+        }.getType();
+        LinkedList<WinsomeTransaction> transactions = gson.fromJson(response.getBody(), type);
+        Pages.PROFILE_PAGE.setTransactions(transactions);
+//        Pages.PROFILE_PAGE.setWinsomeCoins(transactions.isEmpty() ? "0" : transactions.getLast().getCoins());
     }
 
     private void setMyFollowing() {
@@ -486,7 +628,7 @@ public class MainFrameThread extends Thread {
                     banner.setRewinnable(false);
                 }
 
-                if(rewinnedPosts.contains(p.getId())) {
+                if (rewinnedPosts.contains(p.getId())) {
                     banner.setRewinnable(false);
                 }
 
@@ -528,7 +670,6 @@ public class MainFrameThread extends Thread {
             }.getType();
             ArrayList<SimplePost> posts = gson.fromJson(response.getBody(), type);
             if (posts.isEmpty()) {
-                Console.log("[] (Data)");
                 return;
             }
 
@@ -541,7 +682,7 @@ public class MainFrameThread extends Thread {
                     return banner;
                 }
 
-                if(rewinnedPosts.contains(simplePost.getId())) {
+                if (rewinnedPosts.contains(simplePost.getId())) {
                     banner.setRewinnable(false);
                 }
 
@@ -577,7 +718,7 @@ public class MainFrameThread extends Thread {
                     return banner;
                 }
 
-                if(rewinnedPosts.contains(simplePost.getId())) {
+                if (rewinnedPosts.contains(simplePost.getId())) {
                     banner.setRewinnable(false);
                 }
 
@@ -596,7 +737,7 @@ public class MainFrameThread extends Thread {
             return null;
 
         HashMap<String, String> dateMap = new HashMap<>();
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yy - hh:mm:ss");
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yy - HH:mm:ss");
 
         for (PostBanner p : banners) {
             String previousDate = dateMap.putIfAbsent(p.getAuthor(), p.getDate());

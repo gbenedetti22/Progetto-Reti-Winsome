@@ -11,7 +11,7 @@ public class LinkLabel extends JLabel {
     private ACTIONS myAction;
     private Runnable clickAction;
 
-    public LinkLabel(String text){
+    public LinkLabel(String text) {
         super(text);
         setAlignmentX(LEFT_ALIGNMENT);
         setFont(new Font("Arial", Font.PLAIN, 15));
@@ -19,22 +19,23 @@ public class LinkLabel extends JLabel {
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
-    public LinkLabel(String text, int alignment){
+    public LinkLabel(String text, int alignment) {
         super(text, alignment);
         setFont(new Font("Arial", Font.PLAIN, 15));
         setForeground(Color.BLUE);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
-    public void setMargin(Insets insets){
+    public void setMargin(Insets insets) {
         setBorder(BorderFactory.createEmptyBorder(insets.top, insets.left, insets.bottom, insets.right));
     }
 
-    public void setTextSize(int size){
+    public void setTextSize(int size) {
         setFont(new Font("Arial", Font.PLAIN, size));
     }
-    public void setOnMouseClick(Runnable runnable){
-        for(MouseListener listener : getMouseListeners())
+
+    public void setOnMouseClick(Runnable runnable) {
+        for (MouseListener listener : getMouseListeners())
             removeMouseListener(listener);
 
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));

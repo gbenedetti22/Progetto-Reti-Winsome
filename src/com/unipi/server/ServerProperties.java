@@ -2,32 +2,16 @@ package com.unipi.server;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
 public class ServerProperties {
-    protected enum NAMES {
-        SERVER_ADDRESS,
-        RMI_ADDRESS,
-        MULTICAST_ADDRESS,
-        DB_ADDRESS,
-        DB_PORT,
-        DEFUALT_TCP_PORT,
-        DEFUALT_UDP_PORT,
-        MULTICAST_PORT,
-        RMI_REG_PORT,   //porta per il servizio di registrazione
-        RMI_FOLLOW_PORT,   //porta per il servizio dei followers
-        SOCK_TIMEOUT,
-        REWARD_TIME_DELAY,
-        AUTHOR_PERCENTAGE,
-        PRINT_LOG
-    }
-
     private static Properties prop = new Properties();
     private static HashMap<NAMES, Object> map = new HashMap<>(NAMES.values().length);
 
-     static {
+    static {
         init();
     }
 
@@ -66,8 +50,12 @@ public class ServerProperties {
         }
     }
 
-    public static HashMap<NAMES, Object> getValues() {
-        return map;
+    public static Map<NAMES, Object> getValues() {
+        return Collections.unmodifiableMap(map);
+    }
+
+    public static Object getValue(NAMES prop) {
+        return map.get(prop);
     }
 
     private static void setDefualtValues() {
@@ -98,5 +86,22 @@ public class ServerProperties {
                 return true;
             }
         }
+    }
+
+    public enum NAMES {
+        SERVER_ADDRESS,
+        RMI_ADDRESS,
+        MULTICAST_ADDRESS,
+        DB_ADDRESS,
+        DB_PORT,
+        DEFUALT_TCP_PORT,
+        DEFUALT_UDP_PORT,
+        MULTICAST_PORT,
+        RMI_REG_PORT,   //porta per il servizio di registrazione
+        RMI_FOLLOW_PORT,   //porta per il servizio dei followers
+        SOCK_TIMEOUT,
+        REWARD_TIME_DELAY,
+        AUTHOR_PERCENTAGE,
+        PRINT_LOG
     }
 }

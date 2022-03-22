@@ -9,7 +9,6 @@ import com.unipi.database.graph.graphNodes.Node;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -31,7 +30,7 @@ public class WinsomeGraph {
             }
 
             File jsonsFolder = new File(Database.getName() + File.separator + "jsons");
-            if(!jsonsFolder.mkdir()) {
+            if (!jsonsFolder.mkdir()) {
                 System.err.println("Errore nella creazione della cartella jsons");
                 System.exit(-1);
             }
@@ -104,7 +103,7 @@ public class WinsomeGraph {
         return deleted;
     }
 
-    public void clearEdges(Node n){
+    public void clearEdges(Node n) {
         rwlock.writeLock().lock();
         graph.removeNode(n);
         graph.addNode(n);

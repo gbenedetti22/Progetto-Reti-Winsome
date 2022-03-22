@@ -1,15 +1,16 @@
 package com.unipi.server.requestHandler;
 
 import com.google.gson.Gson;
+import com.unipi.common.Console;
+import com.unipi.server.ServerThreadWorker;
 import com.unipi.utility.channelsio.ChannelSender;
 import com.unipi.utility.channelsio.PipedSelector;
-import com.unipi.server.ServerThreadWorker;
 
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
-public class ServerResponder implements Runnable{
+public class ServerResponder implements Runnable {
     private SocketChannel socket;
     private PipedSelector selector;
     private WSResponse response;
@@ -22,7 +23,6 @@ public class ServerResponder implements Runnable{
         this.gson = new Gson();
     }
 
-
     @Override
     public void run() {
         ServerThreadWorker worker = (ServerThreadWorker) Thread.currentThread();
@@ -34,7 +34,7 @@ public class ServerResponder implements Runnable{
             out.sendLine(responseJson);
         } catch (IOException e) {
             e.printStackTrace();
-        }finally {
+        } finally {
             selector.enqueue(socket, SelectionKey.OP_READ);
         }
 

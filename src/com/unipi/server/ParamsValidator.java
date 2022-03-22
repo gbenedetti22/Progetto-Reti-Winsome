@@ -1,16 +1,13 @@
 package com.unipi.server;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.regex.Pattern;
 
-//TODO: controllo sulla lunghezza di username e password
-// Classe ausiliaria per il controllo dei parametri
+
 public class ParamsValidator {
-    private static SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yy - hh:mm:ss");
     private static final String uuidRegex = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$";
-    private static final Pattern pattern = Pattern.compile(uuidRegex);
+    private static final Pattern uuidPattern = Pattern.compile(uuidRegex);
+    private static Pattern specialCharacter = Pattern.compile("[^a-z0-9 ]", Pattern.CASE_INSENSITIVE);
 
     public static String checkRegisterParams(Object... params) {
         if (params.length != 3) {
@@ -21,8 +18,12 @@ public class ParamsValidator {
             return "Username non valido";
         }
 
-        if (!(params[1] instanceof String)) {
+        if (!(params[1] instanceof String pass)) {
             return "Password non valida";
+        }
+
+        if(pass.contains(" ")) {
+            return "La password non può contenere caratteri bianchi";
         }
 
         if (!(params[2] instanceof List<?> list)) {
@@ -32,9 +33,13 @@ public class ParamsValidator {
         if (list.size() > 5 || list.size() == 0) return "I tags devono essere al più 5 e minimo 1";
 
         for (Object o : list) {
-            if (!(o instanceof String)) {
+            if (!(o instanceof String s)) {
                 return "Lista di tags non valida\n" +
                         "Errore nel campo: " + o;
+            }
+
+            if(specialCharacter.matcher(s).find() || s.contains(" ")) {
+                return "I tags non possono contenere caratteri speciali o spazi bianchi";
             }
         }
 
@@ -74,12 +79,16 @@ public class ParamsValidator {
             return "Parametri passati non validi";
         }
 
-        if (!(params[0] instanceof String)) {
+        if (!(params[0] instanceof String title)) {
             return "Titolo non valido";
         }
 
-        if (!(params[1] instanceof String)) {
+        if (!(params[1] instanceof String content)) {
             return "Contenuto non valido";
+        }
+
+        if(title.isBlank() || content.isBlank()) {
+            return "I campi titolo e contenuto non possono essere vuoti!";
         }
 
         if (((String) params[0]).length() > 20) {
@@ -116,7 +125,7 @@ public class ParamsValidator {
             return "Valori inviati non corretti";
         }
 
-        boolean ok = pattern.matcher(s).matches();
+        boolean ok = uuidPattern.matcher(s).matches();
         if (!ok) {
             return "ID Post non valido";
         }
@@ -137,8 +146,49 @@ public class ParamsValidator {
             return "Commento inviato non valido";
         }
 
-        if(s.length() >= 150) {
+        if (s.length() >= 150) {
             return "Commento troppo lungo";
+        }
+
+        return "OK";
+    }
+
+    public static String checkOpenRewinParams(Object[] params) {
+        if (params.length != 2) {
+            return "Parametri passati non validi";
+        }
+
+        if (!(params[0] instanceof String rewinAuthor)) {
+            return "Parametro autore non corretto";
+        }
+
+        if (!(params[1] instanceof String idPost)) {
+            return "Parametro idPost non corretto";
+        }
+
+        boolean ok = uuidPattern.matcher(idPost).matches();
+        if (!ok) {
+            return "ID Post non valido";
+        }
+
+        return "OK";
+    }
+
+    public static String checkGetLatestComments(Object[] params) {
+        if(params.length != 2) {
+            return "Parametri passati non validi";
+        }
+        if (!(params[0] instanceof String idPost)) {
+            return "ID Post inviato non è del tipo giusto";
+        }
+
+        if (!(params[1] instanceof String date)) {
+            return "Data inviata non valido";
+        }
+
+        boolean ok = uuidPattern.matcher(idPost).matches();
+        if(!ok) {
+            return "ID Post non valido";
         }
 
         return "OK";

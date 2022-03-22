@@ -1,55 +1,60 @@
 package com.unipi.client.UI.pages;
 
+import com.unipi.common.WinsomeTransaction;
+
 import javax.swing.*;
 import java.awt.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.LinkedList;
 
 public class HistoryWallet extends JFrame {
 
-    public HistoryWallet(JList<String> operations) throws IllegalArgumentException{
-        if(!checkList(operations)){
-            throw new IllegalArgumentException("Lista di operazioni passata non valida");
+    public HistoryWallet(LinkedList<WinsomeTransaction> list) {
+        DefaultListModel<String> model = new DefaultListModel<>();
+        JList<String> transactions = new JList<>(model);
+
+        for (WinsomeTransaction transaction : list) {
+            model.addElement(String.format("%s > %s", transaction.getCoins(), transaction.getDate()));
         }
 
         setTitle("Cronologia Incrementi");
-        operations.setFont(new Font("Arial", Font.PLAIN, 20));
-        operations.setDragEnabled(false);
-        operations.setCellRenderer(renderRowLine());
-        operations.setFixedCellHeight(40);
+        transactions.setFont(new Font("Arial", Font.PLAIN, 20));
+        transactions.setDragEnabled(false);
+        transactions.setCellRenderer(renderRowLine());
+        transactions.setFixedCellHeight(40);
 
-        JScrollPane scrollPane = new JScrollPane(operations);
+        JScrollPane scrollPane = new JScrollPane(transactions);
         scrollPane.getVerticalScrollBar().setUnitIncrement(10);
 
         setMinimumSize(new Dimension(500, 720));
         setLocationRelativeTo(null);
         add(scrollPane);
-        setVisible(true);
     }
 
-    public HistoryWallet(){
-        this(new JList<>());
-    }
-    
-    private boolean checkList(JList<String> list){
+    private boolean checkList(JList<String> list) {
         for (int i = 0; i < list.getModel().getSize(); i++) {
             String s = list.getModel().getElementAt(i);
 
-            if(!s.contains(" > "))
+            if (!s.contains(" > "))
                 return false;
 
             String date = s.split(" > ", 2)[1];
 
-            try{
+            try {
                 SimpleDateFormat format = new SimpleDateFormat("dd/MM/yyyy - hh:mm:ss");
                 format.parse(date);
-            }catch (ParseException e){
+            } catch (ParseException e) {
                 return false;
             }
 
         }
 
         return true;
+    }
+
+    public void open() {
+        setVisible(true);
     }
 
     private ListCellRenderer<? super String> renderRowLine() {

@@ -23,7 +23,7 @@ public class UserBanner extends JPanel {
 
         add(usernameLabel);
         actionLabel = new LinkLabel("Follow");
-        actionLabel.setOnMouseClick(()-> ActionPipe.performAction(currentAction, this));
+        actionLabel.setOnMouseClick(() -> ActionPipe.performAction(currentAction, this));
         actionLabel.setTextSize(22);
 
         setBackground(Color.WHITE);

@@ -1,25 +1,27 @@
 package com.unipi.server.requestHandler;
 
+import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
-import com.unipi.common.SimpleComment;
-import com.unipi.common.SimpleLike;
+import com.unipi.common.*;
+import com.unipi.database.DBResponse;
 import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Like;
 import com.unipi.server.ParamsValidator;
 import com.unipi.server.RMI.FollowersDatabase;
 import com.unipi.server.ServerMain;
+import com.unipi.server.ServerProperties;
 import com.unipi.server.ServerThreadWorker;
 import com.unipi.utility.channelsio.ChannelSender;
-import com.unipi.utility.channelsio.PipedSelector;
 import com.unipi.utility.channelsio.ConcurrentChannelReceiver;
-import com.unipi.common.Console;
-import com.unipi.common.SimplePost;
+import com.unipi.utility.channelsio.PipedSelector;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Callable;
 
@@ -43,7 +45,7 @@ public class ServerRequestReader implements Callable<String> {
         this.logTable = ServerMain.getUsersLoggedTable();
         this.username = logTable.get(socket);
 
-        gson = new GsonBuilder().setDateFormat("dd/MM/yy - hh:mm:ss").create();
+        gson = new GsonBuilder().setDateFormat("dd/MM/yy - HH:mm:ss").create();
     }
 
     public ServerRequestReader(WSRequest request) {
@@ -69,8 +71,10 @@ public class ServerRequestReader implements Callable<String> {
         try {
             String message = in.receiveLine();
             if (message == null) {
-                socket.close();
                 ServerMain.unregisterClient(username);
+                ServerMain.getUsersLoggedTable().remove(socket);
+
+                socket.close();
                 return "CLOSED SOCKET";
             }
 
@@ -129,6 +133,10 @@ public class ServerRequestReader implements Callable<String> {
                 return performGetPost(request);
             }
 
+            case OPEN_REWIN -> {
+                return performOpenRewin(request);
+            }
+
             case GET_MY_POSTS -> {
                 return performGetAllPosts();
             }
@@ -139,6 +147,10 @@ public class ServerRequestReader implements Callable<String> {
 
             case GET_FRIENDS_POST_FROM_DATE -> {
                 return performGetLatestPost(request);
+            }
+
+            case GET_COMMENTS_FROM_DATE -> {
+                return performGetLatestComments(request);
             }
 
             case REWIN -> {
@@ -168,11 +180,62 @@ public class ServerRequestReader implements Callable<String> {
             case PULL_NEW_ENTRIES -> {
                 //Vedi classe: RewardCalculator
             }
+
+            case GET_TRANSACTIONS -> {
+                return performGetTransactions();
+            }
+
+            case LOGOUT -> {
+                return performLogout();
+            }
         }
 
         String s = "Richiesta non valida";
         response = WSResponse.newErrorResponse(s);
         return s;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String performGetLatestComments(WSRequest request) {
+        String username = ServerMain.getUsersLoggedTable().get(socket);
+        if (username == null) {
+            String s = "Utente non loggato";
+            response = WSResponse.newErrorResponse(s);
+            return s;
+        }
+
+        String check = ParamsValidator.checkGetLatestComments(request.getParams());
+        if (!check.equals("OK")) {
+            response = WSResponse.newErrorResponse(check);
+            return check;
+        }
+
+        String idPost = (String) request.getParams()[0];
+        String date = (String) request.getParams()[1];
+
+        String command = String.format("GET COMMENTS FROM DATE: %s %s", idPost, date);
+        out.setChannel(db_connection);
+        in.setChannel(db_connection);
+
+        try {
+            out.sendLine(command);
+
+            DBResponse db_response = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(db_response.getCode());
+            if (!conv.equals("OK")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
+            }
+
+            Set<SimpleComment> set = (Set<SimpleComment>) db_response.getMessage();
+            TreeSet<SimpleComment> comments = new TreeSet<>(set);
+
+            response = WSResponse.newSuccessResponse(gson.toJson(comments));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return "OK";
     }
 
     private String performRegistration(WSRequest request) {
@@ -194,9 +257,10 @@ public class ServerRequestReader implements Callable<String> {
         try {
             out.sendLine(command);
 
-            String db_response = in.receiveLine();
-            if (!db_response.equals("OK")) {
-                return s;
+            DBResponse db_response = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(db_response.getCode());
+            if (!conv.equals("OK")) {
+                return conv;
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -217,6 +281,18 @@ public class ServerRequestReader implements Callable<String> {
 
         String username = (String) params[0];
         String password = (String) params[1];
+        if(username.isBlank() && password.isBlank()) {
+            String s1 = "Username e password non possono essere vuoti";
+            response = WSResponse.newErrorResponse(s1);
+            return s1;
+        }
+
+        if(ServerMain.getUsersLoggedTable().containsValue(username)){
+            String s1 = "Questo utente ha già eseguito il login su un altro dispositivo";
+            response = WSResponse.newErrorResponse(s1);
+            return s1;
+        }
+
         out.setChannel(db_connection);
         in.setChannel(db_connection);
 
@@ -224,20 +300,32 @@ public class ServerRequestReader implements Callable<String> {
         try {
             out.sendLine(command);
 
-            //in db_response devono esserci i suoi tag
-            List<String> db_response = (List<String>) in.receiveObject();
-            if (db_response.isEmpty()) {
+            DBResponse response = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(response.getCode());
+            if (!conv.equals("OK")) {
+                this.response.setStatus(WSResponse.CODES.ERROR);
+                this.response.setBody(conv);
+                Console.log(response.getCode(), conv);
+                return conv;
+            }
+
+            Console.log(response);
+
+            ArrayList<String> tags = (ArrayList<String>) response.getMessage();
+            if (tags.isEmpty()) {
                 String s1 = "Utente non trovato";
 
-                response.setStatus(WSResponse.CODES.ERROR);
-                response.setBody(s1);
+                this.response.setStatus(WSResponse.CODES.ERROR);
+                this.response.setBody(s1);
                 return s1;
             }
 
-            db_response.sort(Comparator.naturalOrder());
+            tags.sort(Comparator.naturalOrder());
+            String multicastAddress = (String) ServerProperties.getValue(ServerProperties.NAMES.MULTICAST_ADDRESS);
+            int multicastPort = (int) ServerProperties.getValue(ServerProperties.NAMES.MULTICAST_PORT);
+            LoginResponse logResponse = new LoginResponse(tags, multicastAddress, multicastPort);
 
-            response.setStatus(WSResponse.CODES.OK);
-            response.setBody(gson.toJson(db_response));
+            this.response = WSResponse.newSuccessResponse(gson.toJson(logResponse));
             logTable.put(socket, username);
         } catch (IOException e) {
             e.printStackTrace();
@@ -246,6 +334,7 @@ public class ServerRequestReader implements Callable<String> {
         return "OK";
     }
 
+    @SuppressWarnings("unchecked")
     private String performListUsers() {
         if (username != null) {
             String command = String.format("GET FRIENDS BY TAG: %s", username);
@@ -254,18 +343,21 @@ public class ServerRequestReader implements Callable<String> {
 
             try {
                 out.sendLine(command);
-                TreeSet<String> tree = new TreeSet<>();
+                DBResponse dbResponse = (DBResponse) in.receiveObject();
+                String conv = CodeConverter.convert(dbResponse.getCode());
 
-                int size = in.receiveInteger();
-
-                for (int i = 0; i < size; i++) {
-                    String user = in.receiveLine();
-                    if(user.equals(username)) continue;
-
-                    tree.add(user);
+                if (!conv.equals("OK")) {
+                    response.setStatus(WSResponse.CODES.ERROR);
+                    response.setBody(conv);
+                    return conv;
                 }
 
-                String json = gson.toJson(tree);
+                ArrayList<String> users = (ArrayList<String>) dbResponse.getMessage();
+                users.remove(username);
+
+                Collections.sort(users);
+
+                String json = gson.toJson(users);
 
                 response = WSResponse.newSuccessResponse(json);
                 return "OK";
@@ -289,7 +381,15 @@ public class ServerRequestReader implements Callable<String> {
 
             try {
                 out.sendLine(command);
-                Set<String> tree = (Set<String>) in.receiveObject();
+                DBResponse dbResponse = (DBResponse) in.receiveObject();
+                String conv = CodeConverter.convert(dbResponse.getCode());
+                if (!conv.equals("OK")) {
+                    response.setStatus(WSResponse.CODES.ERROR);
+                    response.setBody(conv);
+                    return conv;
+                }
+
+                Set<String> tree = (Set<String>) dbResponse.getMessage();
 
                 String json = gson.toJson(tree);
 
@@ -318,7 +418,15 @@ public class ServerRequestReader implements Callable<String> {
         try {
             out.sendLine(command);
 
-            Set<String> set = (Set<String>) in.receiveObject();
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK")) {
+                response.setStatus(WSResponse.CODES.ERROR);
+                response.setBody(conv);
+                return conv;
+            }
+
+            Set<String> set = (Set<String>) dbResponse.getMessage();
             TreeSet<String> sortedSet = new TreeSet<>(set);
 
             FollowersDatabase clientFollowers = ServerMain.getCallback(username);
@@ -351,11 +459,11 @@ public class ServerRequestReader implements Callable<String> {
 
             try {
                 out.sendLine(command);
-                String dbResponse = in.receiveLine();
-
-                if (!dbResponse.equals("OK")) {
-                    response = WSResponse.newErrorResponse(dbResponse);
-                    return dbResponse;
+                DBResponse dbResponse = (DBResponse) in.receiveObject();
+                String conv = CodeConverter.convert(dbResponse.getCode());
+                if (!conv.equals("OK")) {
+                    response = WSResponse.newErrorResponse(conv);
+                    return conv;
                 }
 
                 //Supponiamo che l utente A voglia seguire l utente B:
@@ -363,7 +471,7 @@ public class ServerRequestReader implements Callable<String> {
                 // B -> userToFollow
                 // A segue B quindi va nella lista dei followers di B
                 FollowersDatabase clientFollowers = ServerMain.getCallback(userToFollow);
-                if(clientFollowers != null)
+                if (clientFollowers != null)
                     clientFollowers.addFollower(username);
 
                 response = WSResponse.newSuccessResponse();
@@ -392,16 +500,17 @@ public class ServerRequestReader implements Callable<String> {
             in.setChannel(db_connection);
 
             try {
+                Console.log(command);
                 out.sendLine(command);
-                String dbResponse = in.receiveLine();
-
-                if (!dbResponse.equals("OK")) {
-                    response = WSResponse.newErrorResponse(dbResponse);
-                    return dbResponse;
+                DBResponse dbResponse = (DBResponse) in.receiveObject();
+                String conv = CodeConverter.convert(dbResponse.getCode());
+                if (!conv.equals("OK")) {
+                    response = WSResponse.newErrorResponse(conv);
+                    return conv;
                 }
 
                 FollowersDatabase clientFollowers = ServerMain.getCallback(userToFollow);
-                if(clientFollowers != null)
+                if (clientFollowers != null)
                     clientFollowers.removeFollower(username);
 
                 response = WSResponse.newSuccessResponse();
@@ -433,13 +542,23 @@ public class ServerRequestReader implements Callable<String> {
         String title = (String) params[0];
         String content = (String) params[1];
 
+        title = Base64.getEncoder().encodeToString(title.getBytes(StandardCharsets.UTF_8));
+        content = Base64.getEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8));
+
         String command = String.format("CREATE POST: %s %s %s", author, title, content);
         out.setChannel(db_connection);
         in.setChannel(db_connection);
 
         try {
             out.sendLine(command);
-            SimplePost post = (SimplePost) in.receiveObject();
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
+            }
+
+            SimplePost post = (SimplePost) dbResponse.getMessage();
             response = WSResponse.newSuccessResponse(gson.toJson(post));
         } catch (IOException e) {
             e.printStackTrace();
@@ -464,11 +583,18 @@ public class ServerRequestReader implements Callable<String> {
 
         try {
             out.sendLine(command);
-            LinkedList<SimplePost> posts = (LinkedList<SimplePost>) in.receiveObject();
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
+            }
+
+            LinkedList<SimplePost> posts = (LinkedList<SimplePost>) dbResponse.getMessage();
             for (SimplePost p : posts) {
-                if(!p.getAuthor().equals(username))
+                if (!p.getAuthor().equals(username))
                     p.setRewin(username);
-                
+
                 tree.add(p);
             }
 
@@ -497,8 +623,14 @@ public class ServerRequestReader implements Callable<String> {
 
         try {
             out.sendLine(command);
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
+            }
 
-            HashMap<String, LinkedList<SimplePost>> map = (HashMap<String, LinkedList<SimplePost>>) in.receiveObject();
+            HashMap<String, LinkedList<SimplePost>> map = (HashMap<String, LinkedList<SimplePost>>) dbResponse.getMessage();
             for (List<SimplePost> l : map.values()) {
                 tree.addAll(l);
             }
@@ -536,11 +668,19 @@ public class ServerRequestReader implements Callable<String> {
 
         try {
             out.sendLine(command);
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
+            }
 
-            HashMap<String, LinkedList<SimplePost>> map = (HashMap<String, LinkedList<SimplePost>>) in.receiveObject();
+            HashMap<String, LinkedList<SimplePost>> map = (HashMap<String, LinkedList<SimplePost>>) dbResponse.getMessage();
             for (List<SimplePost> l : map.values()) {
                 tree.addAll(l);
             }
+
+            Console.log("LATEST POST", map);
 
             String json = gson.toJson(tree);
             response = WSResponse.newSuccessResponse(json);
@@ -598,20 +738,21 @@ public class ServerRequestReader implements Callable<String> {
         String id = (String) request.getParams()[0];
         String content = (String) request.getParams()[1];
 
-        String command = String.format("COMMENT: %s %s %s %s", username, id, username, content);
+        String command = String.format("COMMENT: %s %s %s", id, username, content);
         out.setChannel(db_connection);
         in.setChannel(db_connection);
 
         try {
             out.sendLine(command);
 
-            String dbResponse = in.receiveLine();
-            if (!dbResponse.equals("OK")) {
-                response = WSResponse.newErrorResponse(dbResponse);
-                return dbResponse;
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
             }
 
-            response = WSResponse.newSuccessResponse();
+            response = WSResponse.newSuccessResponse(gson.toJson(dbResponse.getMessage()));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -642,16 +783,17 @@ public class ServerRequestReader implements Callable<String> {
 
         try {
             out.sendLine(command);
-
-            Map<String, Object> dbResponse = (Map<String, Object>) in.receiveObject();
-            if (dbResponse.isEmpty()) {
-                String errMsg = "Post non trovato";
-                response = WSResponse.newErrorResponse(errMsg);
-                return errMsg;
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
             }
 
-            ArrayList<SimpleComment> comments = (ArrayList<SimpleComment>) dbResponse.get("COMMENTS");
-            ArrayList<SimpleLike> likes = (ArrayList<SimpleLike>) dbResponse.get("LIKES");
+            Map<String, Object> map = (Map<String, Object>) dbResponse.getMessage();
+
+            ArrayList<SimpleComment> comments = (ArrayList<SimpleComment>) map.get("COMMENTS");
+            ArrayList<SimpleLike> likes = (ArrayList<SimpleLike>) map.get("LIKES");
 
             comments.sort(Comparator.reverseOrder());
 
@@ -666,12 +808,110 @@ public class ServerRequestReader implements Callable<String> {
                 }
             }
 
-            dbResponse.put("LIKES", nLikes);
-            dbResponse.put("DISLIKES", nDislikes);
+            map.put("LIKES", nLikes);
+            map.put("DISLIKES", nDislikes);
 
-            String json = gson.toJson(dbResponse);
+            Type responseType = new TypeToken<HashMap<String, String>>() {
+            }.getType();
+            String json = gson.toJson(map, responseType);
+            response = WSResponse.newSuccessResponse(json);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return "OK";
+    }
+
+    @SuppressWarnings("unchecked")
+    private String performOpenRewin(WSRequest request) {
+        String username = ServerMain.getUsersLoggedTable().get(socket);
+        if (username == null) {
+            String s = "Utente non loggato";
+            response = WSResponse.newErrorResponse(s);
+            return s;
+        }
+
+        String check = ParamsValidator.checkOpenRewinParams(request.getParams());
+        if (!check.equals("OK")) {
+            response = WSResponse.newErrorResponse(check);
+            return check;
+        }
+
+        String author = (String) request.getParams()[0];
+        String id = (String) request.getParams()[1];
+
+        String command = String.format("OPEN REWIN: %s %s", author, id);
+        out.setChannel(db_connection);
+        in.setChannel(db_connection);
+
+        try {
+            out.sendLine(command);
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
+            }
+
+            Map<String, Object> map = (Map<String, Object>) dbResponse.getMessage();
+
+            ArrayList<SimpleComment> comments = (ArrayList<SimpleComment>) map.get("COMMENTS");
+            ArrayList<SimpleLike> likes = (ArrayList<SimpleLike>) map.get("LIKES");
+
+            comments.sort(Comparator.reverseOrder());
+
+            long nLikes = 0;
+            long nDislikes = 0;
+
+            for (SimpleLike l : likes) {
+                if (l.getType() == Like.type.LIKE) {
+                    nLikes++;
+                } else {
+                    nDislikes++;
+                }
+            }
+
+            map.put("LIKES", nLikes);
+            map.put("DISLIKES", nDislikes);
+
+            Type responseType = new TypeToken<HashMap<String, String>>() {
+            }.getType();
+            String json = gson.toJson(map, responseType);
 
             response = WSResponse.newSuccessResponse(json);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return "OK";
+    }
+
+    @SuppressWarnings("unchecked")
+    private String performGetTransactions() {
+        String username = ServerMain.getUsersLoggedTable().get(socket);
+        if (username == null) {
+            String s = "Utente non loggato";
+            response = WSResponse.newErrorResponse(s);
+            return s;
+        }
+
+        String command = "GET TRANSACTIONS: " + username;
+        out.setChannel(db_connection);
+        in.setChannel(db_connection);
+
+        try {
+            out.sendLine(command);
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
+            }
+
+            List<WinsomeTransaction> transactions = (List<WinsomeTransaction>) dbResponse.getMessage();
+            Collections.sort(transactions);
+
+            response = WSResponse.newSuccessResponse(gson.toJson(transactions));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -702,13 +942,21 @@ public class ServerRequestReader implements Callable<String> {
         try {
             out.sendLine(command);
 
-            String dbResponse = in.receiveLine();
-            if (!dbResponse.equals("OK")) {
-                response = WSResponse.newErrorResponse(dbResponse);
-                return dbResponse;
+            DBResponse dbResponse = (DBResponse) in.receiveObject();
+            String conv = CodeConverter.convert(dbResponse.getCode());
+            if (!conv.equals("OK") && !conv.equals("CHANGED LIKE")) {
+                response = WSResponse.newErrorResponse(conv);
+                return conv;
             }
 
-            response = WSResponse.newSuccessResponse();
+            response = WSResponse.newSuccessResponse(conv);
+
+            if (command.startsWith("REMOVE POST"))
+                ServerMain.sendUDPMessage(String.format("REMOVED %s %s", username, id));
+
+            if (command.startsWith("REMOVE REWIN"))
+                ServerMain.sendUDPMessage(String.format("REMOVED REWIN %s %s", username, id));
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -717,4 +965,12 @@ public class ServerRequestReader implements Callable<String> {
     }
 
 
+    private String performLogout() {
+        String username = ServerMain.getUsersLoggedTable().get(socket);
+        ServerMain.getUsersLoggedTable().remove(socket);
+        ServerMain.unregisterClient(username);  //è una sicurezza in più in quanto il client già si unregistra
+
+        response = WSResponse.newSuccessResponse();
+        return "OK";
+    }
 }

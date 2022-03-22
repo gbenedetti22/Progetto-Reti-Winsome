@@ -10,30 +10,31 @@ public class PasswordField extends JPasswordField {
     private boolean insertedText = false;
     private String placeholder;
 
-    public PasswordField(int limit){
+    public PasswordField(int limit) {
         setColumns(20);
         setFont(new Font("Arial", Font.PLAIN, 22));
         setDocument(new LimitDocument(limit));
         init();
     }
 
-    public void showPassword(){
+    public void showPassword() {
         setEchoChar((char) 0);
     }
-    public void setPlaceHolder(String placeholder){
+
+    public void setPlaceHolder(String placeholder) {
         initPlaceholder(placeholder);
         holderSetted = true;
         this.placeholder = placeholder;
     }
 
-    public void setOnKeyEnterPressed(Runnable run){
-        for(ActionListener al : getActionListeners())
+    public void setOnKeyEnterPressed(Runnable run) {
+        for (ActionListener al : getActionListeners())
             removeActionListener(al);
 
         addActionListener(e -> run.run());
     }
 
-    private void init(){
+    private void init() {
         addKeyListener(new KeyListener() {
             @Override
             public void keyTyped(KeyEvent e) {
@@ -51,11 +52,12 @@ public class PasswordField extends JPasswordField {
             }
         });
     }
+
     private void initPlaceholder(String placeholder) {
-        if(holderSetted)
+        if (holderSetted)
             return;
 
-        if(new String(getPassword()).isEmpty()){
+        if (new String(getPassword()).isEmpty()) {
             showPassword();
             setText(placeholder);
             setForeground(Color.LIGHT_GRAY);
@@ -65,7 +67,7 @@ public class PasswordField extends JPasswordField {
         addFocusListener(new FocusListener() {
             @Override
             public void focusGained(FocusEvent e) {
-                if(holderSetted) {
+                if (holderSetted) {
                     hidePassword();
                     setText("");
                     setForeground(Color.BLACK);
@@ -81,7 +83,7 @@ public class PasswordField extends JPasswordField {
                     setForeground(Color.LIGHT_GRAY);
                     holderSetted = true;
                     insertedText = false;
-                }else {
+                } else {
                     hidePassword();
                     holderSetted = false;
                 }
@@ -89,19 +91,22 @@ public class PasswordField extends JPasswordField {
             }
         });
     }
-    public void hidePassword(){
+
+    public void hidePassword() {
         setEchoChar(defaultCharacter);
     }
-    public String getPlainTextPassword(){
-        if(!insertedText) return "";
+
+    public String getPlainTextPassword() {
+        if (!insertedText) return "";
 
         return new String(getPassword());
     }
 
-    public void clear(){
-        if(placeholder == null)
+    public void clear() {
+        if (placeholder == null)
             placeholder = "";
 
+        showPassword();
         setText(placeholder);
         setForeground(Color.LIGHT_GRAY);
         insertedText = false;

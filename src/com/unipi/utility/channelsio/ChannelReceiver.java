@@ -3,6 +3,7 @@ package com.unipi.utility.channelsio;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 
@@ -38,10 +39,10 @@ public class ChannelReceiver implements Receiver {
     // leggo "ciao mon", "ciao" viene restituito e "mon" viene salvato dentro la mappa.
     // Alla successiva iterazione, "mon" viene ripreso.
     private static HashMap<SocketChannel, String> chunks = new HashMap<>();
+    private final String SEPARATOR = System.lineSeparator();
     private ByteBuffer buffer;
     private SocketChannel channel;
     private StringBuilder builder;
-    private final String SEPARATOR = System.lineSeparator();
 
     /**
      * Costruisce un Receiver che si metterà in ascolto su channel.<br>
@@ -51,7 +52,7 @@ public class ChannelReceiver implements Receiver {
     public ChannelReceiver(SocketChannel channel) {
         this.channel = channel;
 
-        buffer = ByteBuffer.allocate(10);
+        buffer = ByteBuffer.allocate(512);
         builder = new StringBuilder();
     }
 
@@ -99,7 +100,8 @@ public class ChannelReceiver implements Receiver {
             // new String(buffer.array(), 0, nBytes).contains(lineSeparetor);
 
             // non ho usato la String.contains per evitare di dover mettere un while(true)
-            builder.append(new String(buffer.array(), 0, nBytes));
+
+            builder.append(new String(buffer.array(), 0, nBytes, StandardCharsets.UTF_8));
 
             offset += nBytes;
 

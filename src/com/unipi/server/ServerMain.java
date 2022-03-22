@@ -1,6 +1,5 @@
 package com.unipi.server;
 
-import com.unipi.utility.channelsio.PipedSelector;
 import com.unipi.server.RMI.FollowersDatabase;
 import com.unipi.server.RMI.FollowersService;
 import com.unipi.server.RMI.RegistrationService;
@@ -8,13 +7,18 @@ import com.unipi.server.requestHandler.ServerRequestReader;
 import com.unipi.server.requestHandler.ServerResponder;
 import com.unipi.server.requestHandler.WSRequest;
 import com.unipi.server.requestHandler.WSResponse;
+import com.unipi.utility.channelsio.PipedSelector;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.rmi.AlreadyBoundException;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -55,9 +59,36 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
             Registry r2 = LocateRegistry.createRegistry((int) props.get(RMI_FOLLOW_PORT));
             r2.bind("FOLLOWERS-SERVICE", registrationService);
 
+            RewardCalculator rewardCalculator = new RewardCalculator();
+            rewardCalculator.start();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(()-> {
+                System.out.println("Avvio chiusura...");
+                System.out.println("Chiusura threadpool...");
+                threadPool.shutdownNow();
+
+                try {
+                    System.out.println("Chiusura selector...");
+                    selector.close();
+
+                    System.out.println("Chiusura servizi RMI...");
+                    r1.unbind("REGISTER-SERVICE");
+                    r2.unbind("FOLLOWERS-SERVICE");
+
+                    System.out.println("Chiusura Reward Calculator...");
+                    rewardCalculator.interrupt();
+                } catch (IOException | NotBoundException e) {
+                    e.printStackTrace();
+                }
+
+                System.out.println("Bye bye :)");
+            }));
+
             selector.insert(server, SelectionKey.OP_ACCEPT);
 
             System.out.println("Servizio di registrazione Online");
+            System.out.println("Servizio di calcolo delle ricompense Online");
+            System.out.println("Delay: " + rewardCalculator.getDelay());
             System.out.println("Servizio di followers Online");
             System.out.println(running ? "Server Online" : "");
             System.out.println();
@@ -99,6 +130,7 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
     private static void debugTask(Future<?> task) {
@@ -109,6 +141,48 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    public static ConcurrentHashMap<SocketChannel, String> getUsersLoggedTable() {
+        return usersLogged;
+    }
+
+    private static boolean isDatabaseOnline() {
+        String dbAddress = (String) ServerProperties.getValues().get(DB_ADDRESS);
+        int dbPort = (int) ServerProperties.getValues().get(DB_PORT);
+
+        try (SocketChannel ignored = SocketChannel.open(new InetSocketAddress(dbAddress, dbPort))) {
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    public static void stop() {
+        running = false;
+    }
+
+    public static void unregisterClient(String username) {
+        if(username == null) return;
+
+        callbacksMap.remove(username);
+    }
+
+    public static FollowersDatabase getCallback(String username) {
+        return callbacksMap.get(username);
+    }
+
+    public static void sendUDPMessage(String message) {
+        try {
+            DatagramSocket socket = new DatagramSocket();
+            InetAddress address = InetAddress.getByName((String) ServerProperties.getValue(ServerProperties.NAMES.MULTICAST_ADDRESS));
+            int port = (int) ServerProperties.getValue(ServerProperties.NAMES.MULTICAST_PORT);
+            DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), address, port);
+            socket.send(packet);
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -145,29 +219,10 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
         return WSResponse.newSuccessResponse();
     }
 
-    public static ConcurrentHashMap<SocketChannel, String> getUsersLoggedTable() {
-        return usersLogged;
-    }
-
-    private static boolean isDatabaseOnline() {
-        String dbAddress = (String) ServerProperties.getValues().get(DB_ADDRESS);
-        int dbPort = (int) ServerProperties.getValues().get(DB_PORT);
-
-        try (SocketChannel ignored = SocketChannel.open(new InetSocketAddress(dbAddress, dbPort))) {
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
-    }
-
-    public static void stop(){
-        running = false;
-    }
-
     @Override
     public boolean register(String username, FollowersDatabase callback) throws RemoteException {
         boolean reg = callbacksMap.putIfAbsent(username, callback) == null;
-        if(reg) {
+        if (reg) {
             ServerRequestReader request = new ServerRequestReader(new WSRequest(GET_FOLLOWERS, username));
             threadPool.submit(request);
             return true;
@@ -178,19 +233,13 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
 
     @Override
     public boolean unregister(String username) throws RemoteException {
+        if(username == null) return false;
+
         if (!usersLogged.containsValue(username)) {
             return false;
         }
 
         callbacksMap.remove(username);
         return true;
-    }
-
-    public static void unregisterClient(String username) {
-        callbacksMap.remove(username);
-    }
-
-    public static FollowersDatabase getCallback(String username) {
-        return callbacksMap.get(username);
     }
 }

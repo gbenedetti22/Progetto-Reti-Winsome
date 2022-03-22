@@ -13,15 +13,14 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.text.SimpleDateFormat;
 
-public class PostBanner extends JPanel implements Comparable<PostBanner>{
+public class PostBanner extends JPanel implements Comparable<PostBanner> {
+    private String id;
     private String author;
     private LinkLabel retweet;
     private JTextArea placeholder;
-    private String id;
     private JLabel info;
     private JPanel optionPanel;
     private String date;
-    private SimpleDateFormat format = new SimpleDateFormat("dd/MM/yy - hh:mm:ss");
     private SimplePost attached_post;
     private String rewin;
 
@@ -68,12 +67,14 @@ public class PostBanner extends JPanel implements Comparable<PostBanner>{
         info.setForeground(Color.GRAY);
         info.setHorizontalTextPosition(JLabel.RIGHT);
 
+        //TODO: se è un rewin, usare questo
+//        topPostBanner.setBackground(new Color(0xC2D5D5));
         add(topPostBanner, BorderLayout.NORTH);
         add(placeholder, BorderLayout.CENTER);
         add(info, BorderLayout.PAGE_END);
 
-        if(mouseClick)
-            setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.VIEW_POST_ACTION, id));
+        if (mouseClick)
+            setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.VIEW_POST_ACTION, this));
     }
 
     public PostBanner(SimplePost p) {
@@ -116,12 +117,8 @@ public class PostBanner extends JPanel implements Comparable<PostBanner>{
         return attached_post;
     }
 
-    public void hideRewinLabel(boolean value) {
-        retweet.setVisible(!value);
-    }
-
     public void setAsRewin(String rewinnedBy) {
-        String text = String.format("Rewinned by -> %s - %s", rewinnedBy, date);
+        String text = String.format("Rewin di -> %s - %s", rewinnedBy, date);
         info.setText(text);
         this.rewin = rewinnedBy;
     }
@@ -132,7 +129,7 @@ public class PostBanner extends JPanel implements Comparable<PostBanner>{
 
     public void setRewinnable(boolean value) {
         retweet.setVisible(value);
-        if(value) {
+        if (value) {
             rewin = null;
             info.setText(author.concat(" - " + date));
         }
@@ -183,6 +180,8 @@ public class PostBanner extends JPanel implements Comparable<PostBanner>{
 
     @Override
     public int compareTo(PostBanner o) {
+        if(this == o) return 0;
+
         return o.attached_post.compareTo(attached_post);
     }
 }

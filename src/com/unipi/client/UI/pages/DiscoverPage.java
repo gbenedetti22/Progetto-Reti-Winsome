@@ -12,13 +12,12 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 
 public class DiscoverPage extends JPanel {
+    private final JPanel filler = new JPanel();
     private JPanel panel;
     private GridBagConstraints gbc;
     private int offset;
-    private final JPanel filler = new JPanel();
     private LinkedHashSet<UserBanner> banners;
 
     public DiscoverPage(ArrayList<UserBanner> banners) {
@@ -59,6 +58,10 @@ public class DiscoverPage extends JPanel {
         add(scrollPane, BorderLayout.CENTER);
     }
 
+    public DiscoverPage() {
+        this(new ArrayList<>());
+    }
+
     private TextInputField getSearchField() {
         TextInputField inputField = new TextInputField(20);
         inputField.setPlaceHolder("Cerca");
@@ -92,13 +95,9 @@ public class DiscoverPage extends JPanel {
         return inputField;
     }
 
-    public DiscoverPage() {
-        this(new ArrayList<>());
-    }
-
     public void add(UserBanner banner) {
         boolean added = banners.add(banner);
-        if(!added) return;
+        if (!added) return;
 
         panel.remove(filler);
         gbc.gridy = offset;
@@ -110,11 +109,20 @@ public class DiscoverPage extends JPanel {
     }
 
     public void addAll(ArrayList<UserBanner> banners) {
+        clear();
         for (UserBanner b : banners)
             add(b);
     }
 
-    void placeFiller() {
+    public void clear() {
+        offset = 0;
+        for (UserBanner banner : banners)
+            panel.remove(banner);
+
+        banners.clear();
+    }
+
+    private void placeFiller() {
         gbc.gridy++;
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weightx = 1;
@@ -125,4 +133,6 @@ public class DiscoverPage extends JPanel {
 
         gbc.fill = GridBagConstraints.HORIZONTAL;
     }
+
+
 }

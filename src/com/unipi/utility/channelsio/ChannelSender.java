@@ -1,8 +1,12 @@
 package com.unipi.utility.channelsio;
 
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 /**
@@ -30,7 +34,7 @@ public class ChannelSender implements Sender {
     public ChannelSender(SocketChannel socket) {
         this.socket = socket;
 
-        buffer = ByteBuffer.allocateDirect(128);
+        buffer = ByteBuffer.allocateDirect(5);
     }
 
     public ChannelSender() {
@@ -51,16 +55,21 @@ public class ChannelSender implements Sender {
         if (!msg.endsWith(System.lineSeparator()))
             message = msg.concat(System.lineSeparator());
 
-        int len = buffer.capacity() + 1;
-        if (buffer.capacity() > msg.length())
-            len = message.length();
 
-        for (int i = 0; i < message.length(); ) {
-            buffer.put(message.getBytes(), i, Math.min(buffer.capacity(), len));
+        byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
+        int len = buffer.capacity() + 1;    //+1 perchè, se buffer.capacity() < msg.lenght(),
+        // alla prima iterazione del for Math.min() deve restituire buffer.capacity()
+
+        if (buffer.capacity() > bytes.length)
+            len = bytes.length; //se la grandezza del buffer è maggiore del messaggio che voglio inviare
+        //allora Math.min() deve restituire la grandezza del massaggio
+
+        for (int i = 0; i < bytes.length; ) {
+            buffer.put(bytes, i, Math.min(buffer.capacity(), len));
             buffer.flip();
             i += socket.write(buffer);
 
-            len = message.length() - i;
+            len = bytes.length - i; //tengo traccia di quanti bytes rimangono da inviare
             buffer.clear();
         }
 

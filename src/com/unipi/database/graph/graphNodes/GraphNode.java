@@ -22,7 +22,7 @@ public class GraphNode<T> implements Node {
 
     @Override
     public boolean equals(Object obj) {
-        if(obj instanceof GraphNode<?> g){
+        if (obj instanceof GraphNode<?> g) {
             return value.equals(g.value);
         }
 

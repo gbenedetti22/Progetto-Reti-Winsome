@@ -8,7 +8,7 @@ public class ConcurrentReceiverBuilder {
     private static final ConcurrentHashMap<SocketChannel, String> chunksMap = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<SocketChannel, ReentrantLock> locksMap = new ConcurrentHashMap<>();
 
-    protected static ConcurrentChannelReceiver newConcurrentReceiver(){
+    protected static ConcurrentChannelReceiver newConcurrentReceiver() {
         return new ConcurrentChannelReceiver(chunksMap, locksMap);
     }
 }

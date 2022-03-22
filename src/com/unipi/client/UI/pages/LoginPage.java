@@ -1,6 +1,9 @@
 package com.unipi.client.UI.pages;
 
-import com.unipi.client.UI.components.*;
+import com.unipi.client.UI.components.BlueButton;
+import com.unipi.client.UI.components.LinkLabel;
+import com.unipi.client.UI.components.PasswordField;
+import com.unipi.client.UI.components.TextInputField;
 import com.unipi.client.mainFrame.ACTIONS;
 import com.unipi.client.mainFrame.ActionPipe;
 import com.unipi.client.mainFrame.ClientProperties;
@@ -12,8 +15,9 @@ public class LoginPage extends JPanel {
     private final TextInputField username;
     private final PasswordField password;
 
-    public LoginPage(){
+    public LoginPage() {
         super(new GridBagLayout());
+
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbc.anchor = GridBagConstraints.NORTHWEST;
@@ -33,9 +37,7 @@ public class LoginPage extends JPanel {
 
         LinkLabel registerLabel = new LinkLabel("Non sei ancora registrato? Registrati ora!", SwingConstants.CENTER);
         registerLabel.setTextSize(15);
-        registerLabel.setOnMouseClick(()->{
-            ActionPipe.performAction(ACTIONS.REGISTER_ACTION, null);
-        });
+        registerLabel.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.REGISTER_ACTION, null));
 
         username.setOnKeyEnterKeyPressed(button.getClickAction());
         password.setOnKeyEnterPressed(button.getClickAction());
@@ -45,18 +47,23 @@ public class LoginPage extends JPanel {
         gbc.insets = new Insets(0, 0, 7, 0);
         add(username, gbc);
         add(password, gbc);
-        gbc.ipady=10;
+        gbc.ipady = 10;
         add(button, gbc);
-        gbc.ipady=0;
+        gbc.ipady = 0;
         gbc.insets = new Insets(10, 0, 0, 0);
         add(registerLabel, gbc);
     }
 
-    public String getUsername(){
+    public String getUsername() {
         return username.getText();
     }
 
-    public String getPassword(){
-        return String.valueOf(password.getPassword());
+    public String getPassword() {
+        return password.getPlainTextPassword();
+    }
+
+    public void clearFields() {
+        username.clear();
+        password.clear();
     }
 }

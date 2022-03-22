@@ -10,6 +10,33 @@ import java.util.concurrent.ThreadFactory;
 
 public class ServerThreadWorker extends ThreadWorker {
 
+    private SocketChannel socket;
+
+    public ServerThreadWorker(Runnable target, SocketChannel socket) {
+        super(target);
+        this.socket = socket;
+    }
+
+    public static ThreadFactory getWorkerFactory() {
+        return new ServerWorkerFactory();
+    }
+
+    public SocketChannel getDatabaseSocket() {
+        return socket;
+    }
+
+    @Override
+    public void interrupt() {
+        super.interrupt();
+        try {
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Interrotto Thread: " + getName());
+    }
+
     private static class ServerWorkerFactory implements ThreadFactory {
         private long id = 0;
 
@@ -38,20 +65,5 @@ public class ServerThreadWorker extends ThreadWorker {
 
             return SocketChannel.open(new InetSocketAddress(dbAddress, dbPort));
         }
-    }
-
-    private SocketChannel socket;
-
-    public ServerThreadWorker(Runnable target, SocketChannel socket) {
-        super(target);
-        this.socket = socket;
-    }
-
-    public static ThreadFactory getWorkerFactory() {
-        return new ServerWorkerFactory();
-    }
-
-    public SocketChannel getDatabaseSocket() {
-        return socket;
     }
 }

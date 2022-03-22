@@ -1,7 +1,5 @@
 package com.unipi.client.UI.components;
 
-import com.unipi.common.Console;
-
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -36,7 +34,11 @@ public class TextInputField extends JTextField {
         setPlaceHolder(placeholder);
     }
 
-    private void init(){
+    public TextInputField(int limit) {
+        this("", limit);
+    }
+
+    private void init() {
         addKeyListener(new KeyListener() {
             @Override
             public void keyTyped(KeyEvent e) {
@@ -55,8 +57,8 @@ public class TextInputField extends JTextField {
         });
     }
 
-    public void setOnKeyEnterKeyPressed(Runnable run){
-        for(ActionListener al : getActionListeners())
+    public void setOnKeyEnterKeyPressed(Runnable run) {
+        for (ActionListener al : getActionListeners())
             removeActionListener(al);
 
         addActionListener(e -> run.run());
@@ -96,8 +98,8 @@ public class TextInputField extends JTextField {
         });
     }
 
-    public void clear(){
-        if(placeholder == null)
+    public void clear() {
+        if (placeholder == null)
             placeholder = "";
 
         setText(placeholder);
@@ -106,12 +108,8 @@ public class TextInputField extends JTextField {
         holderSetted = true;
     }
 
-    public TextInputField(int limit) {
-        this("", limit);
-    }
-
     public void setPlaceHolder(String placeholder) {
-        if(placeholder.isEmpty()) return;
+        if (placeholder.isEmpty()) return;
 
         this.placeholder = placeholder;
         initPlaceholder(placeholder);
@@ -119,7 +117,7 @@ public class TextInputField extends JTextField {
 
     @Override
     public String getText() {
-        if(!insertedText) return "";
+        if (!insertedText) return "";
 
         Document doc = getDocument();
         String txt;

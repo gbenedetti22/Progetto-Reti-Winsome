@@ -27,7 +27,7 @@ public class TextArea extends JTextArea {
         this("", limit);
     }
 
-    private void init(){
+    private void init() {
         addKeyListener(new KeyListener() {
             @Override
             public void keyTyped(KeyEvent e) {
@@ -85,8 +85,8 @@ public class TextArea extends JTextArea {
         initPlaceholder(placeholder);
     }
 
-    public void clear(){
-        if(placeholder == null)
+    public void clear() {
+        if (placeholder == null)
             placeholder = "";
 
         setText(placeholder);
@@ -97,7 +97,7 @@ public class TextArea extends JTextArea {
 
     @Override
     public String getText() {
-        if(!insertedText) return "";
+        if (!insertedText) return "";
 
         Document doc = getDocument();
         String txt;

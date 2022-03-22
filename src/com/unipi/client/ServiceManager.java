@@ -1,49 +1,26 @@
 package com.unipi.client;
 
 import com.google.gson.Gson;
+import com.unipi.common.Console;
 import com.unipi.server.requestHandler.WSRequest;
 import com.unipi.server.requestHandler.WSResponse;
 import com.unipi.utility.channelsio.ChannelReceiver;
 import com.unipi.utility.channelsio.ChannelSender;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
 public class ServiceManager extends Thread {
-    private static class Pair {
-        WSRequest request;
-        Consumer<WSResponse> callback;
-
-        public Pair(WSRequest request, Consumer<WSResponse> callback) {
-            this.request = request;
-            this.callback = callback;
-        }
-
-        public Pair(WSRequest request) {
-            this(request, null);
-        }
-
-        public WSRequest getRequest() {
-            return request;
-        }
-
-        public Consumer<WSResponse> getCallback() {
-            return callback;
-        }
-
-        public boolean isCallbackSetted() {
-            return callback != null;
-        }
-    }
-
     private LinkedBlockingQueue<Pair> requestsQueue;
     private LinkedBlockingQueue<WSResponse> responsesQueue;
     private boolean running;
     private Gson gson;
     private ChannelSender out;
     private ChannelReceiver in;
+    private SocketChannel socket;
 
     public ServiceManager(SocketChannel socket) {
         this.requestsQueue = new LinkedBlockingQueue<>();
@@ -52,6 +29,7 @@ public class ServiceManager extends Thread {
         this.running = true;
         this.out = new ChannelSender();
         this.in = new ChannelReceiver();
+        this.socket = socket;
 
         out.setChannel(socket);
         in.setChannel(socket);
@@ -84,6 +62,7 @@ public class ServiceManager extends Thread {
                 out.sendLine(json);
 
                 String jsonResponse = in.receiveLine();
+
                 WSResponse response = gson.fromJson(jsonResponse, WSResponse.class);
 
                 if (entry.isCallbackSetted()) {
@@ -105,5 +84,49 @@ public class ServiceManager extends Thread {
         requestsQueue.clear();
         interrupt();
         running = false;
+        try {
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void reconnect() {
+        try {
+            SocketAddress address = socket.getRemoteAddress();
+            socket.close();
+
+            socket = SocketChannel.open(address);
+            out.setChannel(socket);
+            in.setChannel(socket);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static class Pair {
+        WSRequest request;
+        Consumer<WSResponse> callback;
+
+        public Pair(WSRequest request, Consumer<WSResponse> callback) {
+            this.request = request;
+            this.callback = callback;
+        }
+
+        public Pair(WSRequest request) {
+            this(request, null);
+        }
+
+        public WSRequest getRequest() {
+            return request;
+        }
+
+        public Consumer<WSResponse> getCallback() {
+            return callback;
+        }
+
+        public boolean isCallbackSetted() {
+            return callback != null;
+        }
     }
 }

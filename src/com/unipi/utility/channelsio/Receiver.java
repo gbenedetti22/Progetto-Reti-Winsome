@@ -8,13 +8,6 @@ import java.io.IOException;
  */
 public interface Receiver {
     /**
-     * Metodo per ricevere un messaggio inviato da {@link Sender#sendLine(String)}.
-     * @throws IOException se avviene qualche errore di I/O
-     */
-    String receiveLine() throws IOException;
-    void setSleepy();
-
-    /**
      * Metodo statico per la creazione di un nuovo Receiver concorrente (vedi {@link ConcurrentChannelReceiver})
      *
      * @return un nuovo {@link ConcurrentChannelReceiver}
@@ -22,4 +15,22 @@ public interface Receiver {
     static ConcurrentChannelReceiver newConcurrentReceiver() {
         return ConcurrentReceiverBuilder.newConcurrentReceiver();
     }
+
+    /**
+     * Metodo statico per la creazione di un nuovo Receiver concorrente (vedi {@link ChannelReceiver})
+     *
+     * @return un nuovo {@link ChannelReceiver}
+     */
+    static ChannelReceiver newReceiver() {
+        return new ChannelReceiver();
+    }
+
+    /**
+     * Metodo per ricevere un messaggio inviato da {@link Sender#sendLine(String)}.
+     *
+     * @throws IOException se avviene qualche errore di I/O
+     */
+    String receiveLine() throws IOException;
+
+    void setSleepy();
 }

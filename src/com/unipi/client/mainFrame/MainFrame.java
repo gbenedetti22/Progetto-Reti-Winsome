@@ -9,18 +9,17 @@ import java.awt.*;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 
-//TODO: mettere i thread Pool
 public class MainFrame extends JFrame {
+    private final JProgressBar progressBar;
     private MainFrameThread mainThread;
     private JPanel currentPage; //la prima pagina è il Login (vedi costruttore)
     private JPanel previousPage;
-    private final JProgressBar progressBar;
     private boolean progressBarOn = false;
 
     public MainFrame() {
         try {
             mainThread = new MainFrameThread(this);
-        } catch (IOException | NotBoundException e ) {
+        } catch (IOException | NotBoundException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(null, "Impossibile collegarsi al Server", "Errore", JOptionPane.ERROR_MESSAGE);
             System.exit(0);
@@ -39,6 +38,20 @@ public class MainFrame extends JFrame {
         add(currentPage);
         pack();
         setVisible(true);
+    }
+
+    public static void showErrorMessage(String msg) {
+        JOptionPane.showMessageDialog(null,
+                msg,
+                "Errore", JOptionPane.ERROR_MESSAGE);
+    }
+
+    public static void showSuccessMessage(String msg) {
+        ImageIcon icon = new ImageIcon("./resources/checked.png");
+        Image image = icon.getImage().getScaledInstance(45, 45, Image.SCALE_SMOOTH);
+        icon = new ImageIcon(image);
+
+        JOptionPane.showMessageDialog(null, msg, "", JOptionPane.PLAIN_MESSAGE, icon);
     }
 
     private JProgressBar defaultProgressBar() {
@@ -106,7 +119,6 @@ public class MainFrame extends JFrame {
         repaint();
         progressBarOn = false;
     }
-
 
     public JPanel getPreviousPage() {
         return previousPage;

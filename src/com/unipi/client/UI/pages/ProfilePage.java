@@ -6,29 +6,34 @@ import com.unipi.client.UI.components.BlueButton;
 import com.unipi.client.UI.components.LinkLabel;
 import com.unipi.client.UI.components.TextArea;
 import com.unipi.client.UI.components.TextInputField;
-import com.unipi.client.mainFrame.ACTIONS;
-import com.unipi.client.mainFrame.ActionPipe;
-import com.unipi.client.mainFrame.ClientProperties;
-import com.unipi.client.mainFrame.RandomORG;
+import com.unipi.client.mainFrame.*;
+import com.unipi.common.WinsomeTransaction;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.function.Predicate;
 
 public class ProfilePage extends JPanel {
+    private final HomePage.BannerLayout postLayout;
     private LinkLabel winsomeCoinsLabel;
     private LinkLabel bitcoinslabel;
-    private final HomePage.BannerLayout postLayout;
     private TextInputField titleInput;
     private TextArea postContentInput;
     private String newPostTitle;
     private String newPostContent;
-    private RandomORG random;
     private JLabel usernameLabel;
-    private boolean containsPost = false;
+    private LinkedHashSet<PostBanner> banners;
+    private LinkedList<WinsomeTransaction> transactions;
+    private RandomORG randomORG;
+    private float winsomeCoins = 0;
 
     public ProfilePage(String username) {
         super(new BorderLayout());
+        this.banners = new LinkedHashSet<>();
+        this.randomORG = new RandomORG();
 
         JPanel topPanel = initTopPanel(username);
         JScrollPane bannerLayout = HomePage.createScrollableBannerLayout(10);
@@ -42,7 +47,6 @@ public class ProfilePage extends JPanel {
         splitPane.add(bannerLayout, JSplitPane.BOTTOM);
 
         add(splitPane, BorderLayout.CENTER);
-        random = new RandomORG();
     }
 
     public ProfilePage() {
@@ -66,7 +70,7 @@ public class ProfilePage extends JPanel {
         usernameLabel.setHorizontalAlignment(JLabel.HORIZONTAL);
         usernameLabel.setFont(new Font("Arial", Font.BOLD, 27));
 
-        winsomeCoinsLabel = new LinkLabel(0 + " Winsome Coins");
+        winsomeCoinsLabel = new LinkLabel(0 + " WinsomeCoins");
         winsomeCoinsLabel.setHorizontalAlignment(JLabel.LEFT);
         winsomeCoinsLabel.setFont(new Font("Arial", Font.PLAIN, 17));
         winsomeCoinsLabel.setForeground(Color.BLACK);
@@ -75,11 +79,24 @@ public class ProfilePage extends JPanel {
         bitcoinslabel.setHorizontalAlignment(JLabel.LEFT);
         bitcoinslabel.setFont(new Font("Arial", Font.PLAIN, 17));
         bitcoinslabel.setForeground(new Color(0xE99600));
+        bitcoinslabel.setOnMouseClick(() -> {
+            bitcoinslabel.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            int randomNumber = randomORG.getRandomNumber();
+            if (randomNumber == -1) {
+                MainFrame.showErrorMessage("Impossibile reperire il tasso di cambio attuale.\n" +
+                        "Riprovare più tardi.");
+            }
+            bitcoinslabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+            float n = randomNumber == -1 ? randomNumber : (randomNumber * winsomeCoins);
+            bitcoinslabel.setText(n + " Bitcoins");
+        });
 
         LinkLabel historyLabel = new LinkLabel("Cronologia Operazioni");
 
         historyLabel.setOnMouseClick(() -> {
-
+            HistoryWallet wallet = new HistoryWallet(transactions);
+            wallet.open();
         });
 
         titleInput = new TextInputField(ClientProperties.POST_TITLE_MAX_LENGHT);
@@ -151,14 +168,32 @@ public class ProfilePage extends JPanel {
         return topPanel;
     }
 
-    public void addPost(PostBanner banner){
+    public void addPost(PostBanner banner) {
         postLayout.placeComponent(banner);
-        containsPost = true;
+        banners.add(banner);
     }
-    public void removePost(PostBanner banner){
+
+    public void removePost(PostBanner banner) {
         postLayout.remove(banner);
+        banners.remove(banner);
         revalidate();
         repaint();
+    }
+
+    public void removePostIf(Predicate<PostBanner> predicate) {
+        PostBanner b = null;
+        for (PostBanner banner : banners) {
+            if (predicate.test(banner)) {
+                b = banner;
+                postLayout.remove(b);
+            }
+        }
+
+        if (b == null) return;
+
+        banners.removeIf(predicate);
+        postLayout.revalidate();
+        postLayout.repaint();
     }
 
     public String getNewPostTitle() {
@@ -174,6 +209,37 @@ public class ProfilePage extends JPanel {
     }
 
     public boolean containsPost() {
-        return containsPost;
+        return !banners.isEmpty();
+    }
+
+    public void setWinsomeCoins(String n) {
+        winsomeCoinsLabel.setText(n + " WinsomeCoins");
+    }
+
+    public void setTransactions(LinkedList<WinsomeTransaction> transactions) {
+        this.transactions = transactions;
+
+        float n = 0;
+        for (WinsomeTransaction transaction : transactions) {
+            n += Float.parseFloat(transaction.getCoins());
+        }
+
+        this.winsomeCoins = n;
+        winsomeCoinsLabel.setText(n + " WinsomeCoins");
+    }
+
+    public void clear() {
+        for (PostBanner banner : banners) {
+            postLayout.remove(banner);
+        }
+
+        banners.clear();
+        postLayout.resetCounter();
+        setWinsomeCoins("0");
+        bitcoinslabel.setText("0 Bitcoins");
+        setUsername(null);
+        transactions.clear();
+        titleInput.clear();
+        postContentInput.clear();
     }
 }

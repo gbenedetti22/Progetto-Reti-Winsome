@@ -3,14 +3,8 @@ package com.unipi.server.requestHandler;
 import java.io.Serializable;
 
 public class WSResponse implements Serializable {
-    public enum CODES {
-        OK,
-        ERROR
-    }
-
     private CODES status;
     private String body = "NONE";
-
     public WSResponse() {
     }
 
@@ -19,12 +13,24 @@ public class WSResponse implements Serializable {
         this.body = body;
     }
 
+    public static WSResponse newSuccessResponse() {
+        return new WSResponse(CODES.OK, "NONE");
+    }
+
+    public static WSResponse newSuccessResponse(String json) {
+        return new WSResponse(CODES.OK, json);
+    }
+
+    public static WSResponse newErrorResponse(String message) {
+        return new WSResponse(CODES.ERROR, message);
+    }
+
     public CODES code() {
         return status;
     }
 
     public void setStatus(CODES status) {
-        if(status == CODES.OK)
+        if (status == CODES.OK)
             body = "NONE";
 
         this.status = status;
@@ -38,15 +44,16 @@ public class WSResponse implements Serializable {
         this.body = body;
     }
 
-    public static WSResponse newSuccessResponse(){
-        return new WSResponse(CODES.OK, "NONE");
+    public enum CODES {
+        OK,
+        ERROR
     }
 
-    public static WSResponse newSuccessResponse(String message){
-        return new WSResponse(CODES.OK, message);
-    }
-
-    public static WSResponse newErrorResponse(String message){
-        return new WSResponse(CODES.ERROR, message);
+    @Override
+    public String toString() {
+        return "WSResponse{" +
+                "status=" + status +
+                ", body='" + body + '\'' +
+                '}';
     }
 }

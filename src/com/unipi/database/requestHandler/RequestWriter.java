@@ -2,8 +2,11 @@ package com.unipi.database.requestHandler;
 
 import com.unipi.common.SimpleComment;
 import com.unipi.common.SimpleLike;
+import com.unipi.common.SimplePost;
+import com.unipi.database.DBResponse;
 import com.unipi.database.Database;
 import com.unipi.database.DatabaseMain;
+import com.unipi.database.EntriesStorage;
 import com.unipi.database.graph.graphNodes.GraphNode;
 import com.unipi.database.graph.graphNodes.GroupNode;
 import com.unipi.database.graph.graphNodes.Node;
@@ -13,7 +16,6 @@ import com.unipi.database.tables.Post;
 import com.unipi.database.utility.ThreadWorker;
 import com.unipi.utility.channelsio.ChannelSender;
 import com.unipi.utility.channelsio.PipedSelector;
-import com.unipi.common.SimplePost;
 
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
@@ -60,7 +62,9 @@ public class RequestWriter implements Runnable {
             case CREATE_POST -> createPost();
             case CREATE_USER -> createUser();
             case VIEW_POST -> viewPost();
+            case OPEN_REWIN -> getRewin();
             case GET_ALL_POSTS -> getAllPosts();
+            case GET_LATEST_COMMENTS -> getLatestComments();
             case FRIENDS_POSTS -> friendsPosts();
             case REWIN -> rewin();
             case REMOVE_REWIN -> removeRewin();
@@ -69,6 +73,8 @@ public class RequestWriter implements Runnable {
             case DISLIKE -> dislike();
             case REMOVE_POST -> removePost();
             case PULL_ENTRIES -> getLatestEntries();
+            case UPDATE_USER -> updateUser();
+            case GET_TRANSACTIONS -> getTransactions();
             case CHECK_IF_EXIST -> findUser();
             case GET_LATEST_POST -> getLatestPost();
             default -> {
@@ -77,14 +83,51 @@ public class RequestWriter implements Runnable {
 
     }
 
+    private void getLatestComments() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        if (packet.getMessage() instanceof Set<?> set) {
+            try {
+                out.sendObject(new DBResponse("200", set));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void getRewin() {
+        viewPost();
+    }
+
     private void createUser() {
-        sendString();
+        String message = (String) packet.getMessage();
+        try {
+            out.sendObject(new DBResponse(message));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @SuppressWarnings("unchecked")
     private void findUser() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
         Set<Node> set = (Set<Node>) packet.getMessage();
-        List<String> l = new LinkedList<>();
+        List<String> l = new ArrayList<>();
         for (Node n : set) {
             if (n instanceof GraphNode<?> g && g.getValue() instanceof String tag) {
                 l.add(tag);
@@ -92,60 +135,134 @@ public class RequestWriter implements Runnable {
         }
 
         try {
-            out.sendObject(l);
+            out.sendObject(new DBResponse("200", l));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void discover() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
         try {
             if (packet.getMessage() instanceof Set<?> set) {
-                out.sendInteger(set.size());
-
+                ArrayList<String> users = new ArrayList<>(set.size());
                 for (Object o : set) {
                     if (o instanceof Node n && n instanceof GroupNode g1) {
-                        if(g1.getParent() instanceof GraphNode<?> g2 && g2.getValue() instanceof String s) {
-                            out.sendLine(s);
+                        if (g1.getParent() instanceof GraphNode<?> g2 && g2.getValue() instanceof String s) {
+                            users.add(s);
                         }
                     }
                 }
+                out.sendObject(new DBResponse("200", users));
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
     private void getFollowers() {
-        sendSetOfString();
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        if (packet.getMessage() instanceof Set<?> set) {
+            try {
+                out.sendObject(new DBResponse("200", set));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void getFollowing() {
-        sendSetOfString();
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        if (packet.getMessage() instanceof Set<?> set) {
+            try {
+                out.sendObject(new DBResponse("200", set));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void follow() {
-        sendString();
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void unfollow() {
-        sendString();
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void createPost() {
-        Post p = (Post) packet.getMessage();
-        SimplePost simplePost = p.toSimplePost();
-        try {
-            out.sendObject(simplePost);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return;
+        }
+
+        if (packet.getMessage() instanceof Post p) {
+            try {
+                out.sendObject(new DBResponse("200", p.toSimplePost()));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     @SuppressWarnings("unchecked")
     private void viewPost() {
-        HashMap<String, Object> map = (HashMap<String, Object>) packet.getMessage();
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return;
+        }
+
         try {
+            if (!(packet.getMessage() instanceof HashMap<?, ?> message)) return;
+
+            HashMap<String, Object> map = (HashMap<String, Object>) message;
             Set<Node> commentNodes = (Set<Node>) map.get("COMMENTS");
             Set<Node> likeNodes = (Set<Node>) map.get("LIKES");
 
@@ -167,13 +284,23 @@ public class RequestWriter implements Runnable {
             map.put("COMMENTS", comments);
             map.put("LIKES", likes);
 
-            out.sendObject(map);
+            out.sendObject(new DBResponse("200", map));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void getAllPosts() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return;
+        }
+
         try {
             LinkedList<SimplePost> posts = new LinkedList<>();
 
@@ -186,98 +313,27 @@ public class RequestWriter implements Runnable {
                 }
             }
 
-            out.sendObject(posts);
+            out.sendObject(new DBResponse("200", posts));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void friendsPosts() {
-        sendSetOfPosts();
-    }
-
-    private void getLatestPost() {
-        sendSetOfPosts();
-    }
-
-    private void rewin() {
-        sendString();
-    }
-
-    private void removeRewin() {
-        sendString();
-    }
-
-    private void comment() {
-        sendString();
-    }
-
-    private void like() {
-        sendString();
-    }
-
-    private void dislike() {
-        sendString();
-    }
-
-    public void removePost() {
-        sendString();
-    }
-
-    public void getLatestEntries() {
-        try {
-            if (packet.getMessage() instanceof Set<?> set) {
-                out.sendInteger(set.size());
-
-                for (Object obj : set) {
-                    if (obj instanceof GraphNode<?> g) {
-                        out.sendObject(g.getValue());
-                    }
-                }
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
-    private void sendSetOfString() {
-        try {
-            out.sendObject(packet.getMessage());
-        } catch (IOException e) {
-            e.printStackTrace();
+            return;
         }
-    }
 
-    private void sendString() {
-        String message = (String) packet.getMessage();
-        try {
-            out.sendLine(message);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+        if (!(packet.getMessage() instanceof Map<?, ?> m)) return;
 
-    @SuppressWarnings("unchecked")
-    private void sendSetOfPosts() {
-        Map<String, Set<Node>> map = (Map<String, Set<Node>>) packet.getMessage();
+        Map<String, Set<Node>> map = (Map<String, Set<Node>>) m;
         HashMap<String, LinkedList<SimplePost>> unpackedMap = new HashMap<>(map.size());
-//        LinkedList<SimplePost> posts = new LinkedList<>();
-//
-//        map.forEach((key, value) -> value
-//                .stream()
-//                .map(n -> {
-//                    if (n instanceof GraphNode<?> g && g.getValue() instanceof UUID id) {
-//                        Post p = database.getPost(id);
-//                        SimplePost simplePost = p.toSimplePost();
-//
-//                        if (!p.getAuthor().equals(key))
-//                            simplePost.setRewin(key);
-//
-//                        return simplePost;
-//                    }
-//                    return null;
-//                }).filter(Objects::nonNull).forEach(posts::add));
-
         for (Map.Entry<String, Set<Node>> entry : map.entrySet()) {
             String friends = entry.getKey();
             LinkedList<SimplePost> posts = new LinkedList<>();
@@ -295,13 +351,170 @@ public class RequestWriter implements Runnable {
             }
 
             unpackedMap.put(friends, posts);
-//            map.remove(friends);
         }
 
         try {
-            out.sendObject(unpackedMap);
+            out.sendObject(new DBResponse("200", unpackedMap));
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void getLatestPost() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return;
+        }
+
+        if (!(packet.getMessage() instanceof Map<?, ?> m)) return;
+
+        Map<String, Set<Node>> map = (Map<String, Set<Node>>) m;
+        HashMap<String, LinkedList<SimplePost>> unpackedMap = new HashMap<>(map.size());
+        for (Map.Entry<String, Set<Node>> entry : map.entrySet()) {
+            String friends = entry.getKey();
+            LinkedList<SimplePost> posts = new LinkedList<>();
+
+            for (Node n : entry.getValue()) {
+                if (n instanceof GraphNode<?> g && g.getValue() instanceof UUID id) {
+                    Post p = database.getPost(id);
+                    SimplePost simplePost = p.toSimplePost();
+
+                    if (!p.getAuthor().equals(friends))
+                        simplePost.setRewin(friends);
+
+                    posts.add(simplePost);
+                }
+            }
+
+            unpackedMap.put(friends, posts);
+        }
+
+        try {
+            out.sendObject(new DBResponse("200", unpackedMap));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void rewin() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void removeRewin() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void comment() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        if(packet.getMessage() instanceof Comment c) {
+            try {
+                out.sendObject(new DBResponse("200", c.toSimpleComment()));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void like() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void dislike() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void removePost() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void getTransactions() {
+        if (packet.getMessage() instanceof String code) {
+            try {
+                out.sendObject(new DBResponse(code));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        if (packet.getMessage() instanceof List<?> transactions) {
+            try {
+                out.sendObject(new DBResponse("200", transactions));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void getLatestEntries() {
+        try {
+            if (packet.getMessage() instanceof ArrayList<?> entries) {
+                out.sendInteger(entries.size());
+
+                for (Object obj : entries) {
+                    if (obj instanceof EntriesStorage.Entry e) {
+                        out.sendObject(e);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateUser() {
+        if (packet.getMessage() instanceof String message) {
+            try {
+                if(message.equals("200"))
+                    out.sendObject(new DBResponse("200"));
+                else
+                    out.sendObject(new DBResponse("214", message));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

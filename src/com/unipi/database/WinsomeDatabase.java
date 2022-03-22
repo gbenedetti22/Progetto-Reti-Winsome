@@ -1,13 +1,14 @@
 package com.unipi.database;
 
 import com.unipi.database.graph.graphNodes.Node;
+import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Post;
 import com.unipi.database.tables.User;
 
 import java.util.*;
 
 public interface WinsomeDatabase {
-    boolean createUser(String username, String password, List<String> tags);
+    String createUser(String username, String password, List<String> tags);
 
     User getUser(String username);
 
@@ -19,13 +20,14 @@ public interface WinsomeDatabase {
 
     Set<String> getFollowingOf(String username);
 
-    boolean followUser(String u1, String u2);
+    String followUser(String u1, String u2);
 
-    boolean unfollowUser(String u1, String u2);
+    String unfollowUser(String u1, String u2);
 
     Post createPost(String author, String title, String content);
 
-    HashMap<String, Object> viewFriendPost(String whoWantToView, UUID idPost);
+    HashMap<String, Object> viewFriendPost(String author, UUID idPost);
+    HashMap<String, Object> openRewin(String author, UUID idPost);
 
     Set<Node> getAllPostsOf(String username);
 
@@ -33,17 +35,17 @@ public interface WinsomeDatabase {
 
     Map<String, Set<Node>> getLatestFriendsPostsOf(String username, Map<String, String> date);
 
-    boolean rewinFriendsPost(String username, UUID idPost);
+    String rewinFriendsPost(String username, UUID idPost);
 
-    boolean removeRewin(String username, UUID idPost);
+    String removeRewin(String username, UUID idPost);
 
-    boolean appendComment(String username, UUID idPost, String author, String content);
+    Comment appendComment(UUID idPost, String author, String content);
 
-    boolean appendLike(String username, UUID idPost);
+    String appendLike(String username, UUID idPost);
 
-    boolean appendDislike(String username, UUID idPost);
+    String appendDislike(String username, UUID idPost);
 
-    boolean removePost(String username, UUID idPost);
+    String removePost(String username, UUID idPost);
 
-    Set<Node> pullNewEntries();
+    ArrayList<EntriesStorage.Entry> pullNewEntries();
 }

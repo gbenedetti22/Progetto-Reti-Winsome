@@ -3,12 +3,13 @@ package com.unipi.database.tables;
 import com.unipi.common.SimpleComment;
 import com.unipi.database.Database;
 
+import java.io.Serializable;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
 
-public class Comment implements Comparable<Comment>{
+public class Comment implements Comparable<Comment>, Serializable {
     private final UUID idComment;
     private final UUID idPost;
     private final String author;
@@ -20,7 +21,7 @@ public class Comment implements Comparable<Comment>{
         this.idPost = idPost;
         this.author = author;
         this.content = content;
-        this.date = Database.getDateFormat().toSimpleDateFormat().format(new Date());
+        this.date = Database.getDateFormat().getSimpleDateFormat().format(new Date());
 
         this.idComment = UUID.randomUUID();
         linePosition = -1;
@@ -55,7 +56,7 @@ public class Comment implements Comparable<Comment>{
     }
 
     public SimpleComment toSimpleComment() {
-        return new SimpleComment(author, content, date);
+        return new SimpleComment(idComment.toString(), author, content, date);
     }
 
     @Override
@@ -83,8 +84,8 @@ public class Comment implements Comparable<Comment>{
     @Override
     public int compareTo(Comment o) {
         try {
-            Date d1 = Database.getDateFormat().toSimpleDateFormat().parse(date);
-            Date d2 = Database.getDateFormat().toSimpleDateFormat().parse(o.getDate());
+            Date d1 = Database.getDateFormat().getSimpleDateFormat().parse(date);
+            Date d2 = Database.getDateFormat().getSimpleDateFormat().parse(o.getDate());
 
             return d1.compareTo(d2);
         } catch (ParseException e) {

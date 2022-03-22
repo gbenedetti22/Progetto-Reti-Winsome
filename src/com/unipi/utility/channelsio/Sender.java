@@ -10,6 +10,7 @@ import java.io.IOException;
 public interface Sender {
     /**
      * Metodo per inviare un messaggio.
+     *
      * @param s il messaggio da inviare
      * @throws IOException se avviene qualche errore di I/O
      */

@@ -1,5 +1,6 @@
 package com.unipi.database.tables;
 
+import com.unipi.common.WinsomeTransaction;
 import com.unipi.database.graph.graphNodes.GroupNode;
 
 import java.util.*;
@@ -11,6 +12,7 @@ public class User {
     private HashSet<String> following;
     private HashSet<String> followers;
     private Date dateOfLastPost;
+    private List<WinsomeTransaction> transactions;
     private transient GroupNode tagsGroupNode;
     private transient GroupNode postsGroupNode;
 
@@ -18,6 +20,7 @@ public class User {
         this.username = username;
         this.password = password;
         this.tags = tags;
+        this.transactions = new LinkedList<>();
 
         followers = new HashSet<>();
         following = new HashSet<>();
@@ -35,19 +38,19 @@ public class User {
         return Collections.unmodifiableList(tags);
     }
 
-    public boolean addFollow(String username){
+    public boolean addFollow(String username) {
         return following.add(username);
     }
 
-    public boolean addFollowers(String username){
+    public boolean addFollowers(String username) {
         return followers.add(username);
     }
 
-    public boolean removeFollow(String username){
+    public boolean removeFollow(String username) {
         return following.remove(username);
     }
 
-    public boolean removeFollowers(String username){
+    public boolean removeFollowers(String username) {
         return followers.remove(username);
     }
 
@@ -81,6 +84,14 @@ public class User {
 
     public void setDateOfLastPost(Date date) {
         this.dateOfLastPost = date;
+    }
+
+    public void addTransaction(String coins, String date) {
+        transactions.add(new WinsomeTransaction(coins, date));
+    }
+
+    public List<WinsomeTransaction> getTransactions() {
+        return transactions;
     }
 
     @Override

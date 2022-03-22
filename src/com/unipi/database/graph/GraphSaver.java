@@ -2,6 +2,7 @@ package com.unipi.database.graph;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.unipi.common.Console;
 import com.unipi.database.Database;
 import com.unipi.database.graph.graphNodes.GraphNode;
 import com.unipi.database.graph.graphNodes.Node;
@@ -12,6 +13,7 @@ import com.unipi.database.tables.User;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
 import java.util.UUID;
@@ -20,14 +22,12 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class GraphSaver {
     private Gson gson;
-    private ConcurrentHashMap<String, ReentrantLock> tableLocks;
 
     public GraphSaver() {
         gson = new GsonBuilder().setPrettyPrinting().setDateFormat(Database.getDateFormat().toString()).create();
-        tableLocks = new ConcurrentHashMap<>();
     }
 
-    public void saveUser(String username) {
+    public synchronized void saveUser(String username) {
         if (username == null) return;
 
         try {
@@ -42,14 +42,11 @@ public class GraphSaver {
             e.printStackTrace();
         }
 
-        tableLocks.putIfAbsent(username, new ReentrantLock());
     }
 
     public void savePost(Post p) {
         if (p == null || p.getLinePosition() != -1) return;
 
-        tableLocks.putIfAbsent(p.getAuthor(), new ReentrantLock());
-        tableLocks.get(p.getAuthor()).lock();
         try {
             RandomAccessFile file = new RandomAccessFile(pathOf(p.getAuthor()), "rw");
             file.seek(file.length());
@@ -59,8 +56,6 @@ public class GraphSaver {
             file.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            tableLocks.get(p.getAuthor()).unlock();
         }
     }
 
@@ -68,8 +63,6 @@ public class GraphSaver {
         if (p == null || p.getLinePosition() < 0) return;
 
         String username = p.getAuthor();
-        tableLocks.putIfAbsent(p.getAuthor(), new ReentrantLock());
-        tableLocks.get(p.getAuthor()).lock();
         try {
             RandomAccessFile raf = new RandomAccessFile(pathOf(username), "rw");
             raf.seek(p.getLinePosition());
@@ -107,8 +100,6 @@ public class GraphSaver {
             raf.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            tableLocks.get(p.getAuthor()).unlock();
         }
 
     }
@@ -116,8 +107,6 @@ public class GraphSaver {
     public void saveComment(String username, Comment c) {
         if (username == null || c == null || c.getLinePosition() != -1) return;
 
-        tableLocks.putIfAbsent(username, new ReentrantLock());
-        tableLocks.get(username).lock();
         try {
             RandomAccessFile file = new RandomAccessFile(pathOf(username), "rw");
             file.seek(file.length());
@@ -133,16 +122,25 @@ public class GraphSaver {
 
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            tableLocks.get(username).unlock();
         }
     }
 
     public void saveLike(String username, Like l) {
-        if (l == null || l.getLinePosition() != -1) return;
+        if (l == null) return;
 
-        tableLocks.putIfAbsent(username, new ReentrantLock());
-        tableLocks.get(username).lock();
+        //Se il like già esiste, allora aggiorno solo il json
+        if(Files.exists(Path.of(jsonPathOf(l.getId().toString())))) {
+            try {
+                String s = gson.toJson(l);
+                BufferedWriter out = new BufferedWriter(new PrintWriter(jsonPathOf(l.getId().toString())));
+                out.write(s);
+                out.close();
+            }catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
         try {
             RandomAccessFile file = new RandomAccessFile(pathOf(username), "rw");
             file.seek(file.length());
@@ -157,30 +155,45 @@ public class GraphSaver {
             out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            tableLocks.get(username).unlock();
         }
     }
 
     public void saveRewin(User u, UUID idPost) {
         String rewinFile = Database.getName() + File.separator + "rewins";
-        tableLocks.putIfAbsent(u.getUsername(), new ReentrantLock());
-        tableLocks.get(u.getUsername()).lock();
+
         try {
             BufferedWriter out = new BufferedWriter(new FileWriter(rewinFile, true));
             out.write(String.format("%s;%s\n", u.getUsername(), idPost.toString()));
             out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            tableLocks.get(u.getUsername()).unlock();
         }
+    }
+
+    public void removeRewinFromFile(String username, UUID idPost) {
+        try {
+            if (!Files.exists(Paths.get(rewinsPath()))) return;
+
+            RandomAccessFile file = new RandomAccessFile(rewinsPath(), "rw");
+            String record = String.format("%s;%s", username, idPost.toString());
+            String line;
+            while ((line = file.readLine()) != null) {
+                if (line.equals(record)) {
+                    file.seek(Math.max(file.getFilePointer() - line.length() - 1, 0));
+                    file.writeBytes("#".repeat(line.length()));
+                    file.close();
+                    return;
+                }
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void removeEntry(String username, Like l) {
         if (l == null || l.getLinePosition() == -1) return;
-        tableLocks.putIfAbsent(username, new ReentrantLock());
-        tableLocks.get(username).lock();
 
         try {
             RandomAccessFile file = new RandomAccessFile(pathOf(username), "rw");
@@ -191,16 +204,12 @@ public class GraphSaver {
             file.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            tableLocks.get(username).unlock();
         }
     }
 
     public void removeEntry(String username, Comment c) {
         if (c == null || c.getLinePosition() == -1) return;
 
-        tableLocks.putIfAbsent(username, new ReentrantLock());
-        tableLocks.get(username).lock();
         try {
             RandomAccessFile file = new RandomAccessFile(pathOf(username), "rw");
             long linePosition = c.getLinePosition();
@@ -210,45 +219,15 @@ public class GraphSaver {
             file.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            tableLocks.get(username).unlock();
         }
-    }
-
-    public void removeRewinFromFile(String username, UUID idPost) {
-        try {
-            if (!Files.exists(Paths.get(rewinsPath()))) return;
-
-            tableLocks.putIfAbsent(username, new ReentrantLock());
-            tableLocks.get(username).lock();
-            RandomAccessFile file = new RandomAccessFile(rewinsPath(), "rw");
-            String record = String.format("%s;%s", username, idPost.toString());
-            String line;
-            while ((line = file.readLine()) != null) {
-                if (line.equals(record)) {
-                    file.seek(Math.max(file.getFilePointer() - line.length() - 2, 0));
-                    file.writeBytes("#".repeat(line.length()));
-                    file.close();
-                    return;
-                }
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            tableLocks.get(username).unlock();
-        }
-
     }
 
     private String pathOf(String username) {
         return Database.getName() + File.separator + username;
     }
-
     private String jsonPathOf(String filename) {
         return Database.getName() + File.separator + "jsons" + File.separator + filename + ".json";
     }
-
     private String rewinsPath() {
         return Database.getName() + File.separator + "rewins";
     }

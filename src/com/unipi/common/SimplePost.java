@@ -80,7 +80,7 @@ public class SimplePost implements Comparable<SimplePost>, Serializable {
 
     @Override
     public int compareTo(SimplePost o) {
-        SimpleDateFormat format = new SimpleDateFormat("dd/MM/yy - hh:mm:ss");
+        SimpleDateFormat format = new SimpleDateFormat("dd/MM/yy - HH:mm:ss");
         try {
             Date d1 = format.parse(date);
             Date d2 = format.parse(o.getDate());

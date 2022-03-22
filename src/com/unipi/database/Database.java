@@ -4,6 +4,7 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
+import com.unipi.common.SimpleComment;
 import com.unipi.database.graph.GraphSaver;
 import com.unipi.database.graph.WinsomeGraph;
 import com.unipi.database.graph.graphNodes.GraphNode;
@@ -13,6 +14,7 @@ import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Like;
 import com.unipi.database.tables.Post;
 import com.unipi.database.tables.User;
+import com.unipi.utility.StandardPriority;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -22,35 +24,18 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-//TODO: verificare UUID con pattern matching
-public class Database implements WinsomeDatabase {
+public class Database implements WinsomeDatabase, Closeable {
     private WinsomeGraph graph;
     private GraphSaver graphSaver;
     private ConcurrentHashMap<String, User> tableUsers;
     private ConcurrentHashMap<UUID, Post> tablePosts;
-    private GroupNode newEntryGroup;
+    private EntriesStorage entries;
     private Gson gson;
-
-    public static class DatabaseDate {
-        private final String dateS;
-        private final SimpleDateFormat dateSDF;
-
-        public DatabaseDate() {
-            dateS = "dd/MM/yy - hh:mm:ss";
-            dateSDF = new SimpleDateFormat("dd/MM/yy - hh:mm:ss");
-        }
-
-        public String toString() {
-            return dateS;
-        }
-
-        public SimpleDateFormat toSimpleDateFormat() {
-            return dateSDF;
-        }
-    }
+    private PriorityAsyncExecutor saver;
 
     public Database() {
         gson = new GsonBuilder().setPrettyPrinting().setDateFormat(getDateFormat().toString()).create();
+        this.entries = new EntriesStorage(this);
 
         try {
             loadTables();
@@ -68,16 +53,33 @@ public class Database implements WinsomeDatabase {
 
         graph = new WinsomeGraph(this);
         graphSaver = new GraphSaver();
+        new Thread(() -> {
+            System.out.println("Atteso input tastiera...");
+            Scanner scanner = new Scanner(System.in);
+            scanner.nextLine();
+            saver.interrupt();
+            scanner.close();
+        }).start();
+    }
 
-        String NEW_ENTRY_LABEL = "NEW ENTRY";
-        GroupNode newEntryGroup = new GroupNode(NEW_ENTRY_LABEL, null);
-        this.newEntryGroup = newEntryGroup;
-        graph.addNode(newEntryGroup);
+    public static DatabaseDate getDateFormat() {
+        return new DatabaseDate();
+    }
+
+    public static String getName() {
+        return "graphDB";
+    }
+
+    public void startSaving(String delay) {
+        this.saver = new PriorityAsyncExecutor(delay);
+        saver.start();
+
+        System.out.println("Saver Avviato");
     }
 
     @Override
-    public boolean createUser(String username, String password, List<String> tags) {
-        if (tableUsers.containsKey(username)) return false;
+    public String createUser(String username, String password, List<String> tags) {
+        if (tableUsers.containsKey(username)) return "201";
 
         ArrayList<String> tagsCopy = new ArrayList<>(5);
 
@@ -108,7 +110,7 @@ public class Database implements WinsomeDatabase {
         u.setTagsGroupNode(tagsGroup);
         graphSaver.saveUser(username);
 
-        return true;
+        return "200";
     }
 
     @Override
@@ -128,12 +130,11 @@ public class Database implements WinsomeDatabase {
                     return false;
                 }).collect(Collectors.toSet());
 
-            return new HashSet<>();
+            return null;
         } catch (NullPointerException e) {
-            return new HashSet<>();
+            return null;
         }
     }
-
 
     @Override
     public Set<Node> getUsersByTag(String username) {
@@ -149,7 +150,7 @@ public class Database implements WinsomeDatabase {
 
             return Collections.unmodifiableSet(result);
         } catch (NullPointerException e) {
-            return new HashSet<>();
+            return null;
         }
     }
 
@@ -160,54 +161,50 @@ public class Database implements WinsomeDatabase {
 
             return Collections.unmodifiableSet(u.getFollowers());
         } catch (NullPointerException e) {
-            return new HashSet<>();
+            return null;
         }
     }
 
-
+    //u1 segue u2
     @Override
     public Set<String> getFollowingOf(String username) {
         try {
             User u = Objects.requireNonNull(tableUsers.get(username));
             return Collections.unmodifiableSet(u.getFollowing());
         } catch (NullPointerException e) {
-            return new HashSet<>();
+            return null;
         }
     }
 
-    //u1 segue u2
-
     @Override
-    public boolean followUser(String u1, String u2) {
+    public String followUser(String u1, String u2) {
         try {
             User user1 = Objects.requireNonNull(tableUsers.get(u1));
             User user2 = Objects.requireNonNull(tableUsers.get(u2));
 
             boolean b1 = user1.addFollow(u2);
             boolean b2 = user2.addFollowers(u1);
-            return b1 && b2;
+            return b1 && b2 ? "200" : "202";
         } catch (NullPointerException ignored) {
         }
 
-        return false;
+        return "207";
     }
 
-
     @Override
-    public boolean unfollowUser(String u1, String u2) {
+    public String unfollowUser(String u1, String u2) {
         try {
             User user1 = Objects.requireNonNull(tableUsers.get(u1));
             User user2 = Objects.requireNonNull(tableUsers.get(u2));
 
             boolean b1 = user1.removeFollow(u2);
             boolean b2 = user2.removeFollowers(u1);
-            return b1 && b2;
+            return b1 && b2 ? "200" : "202";
         } catch (NullPointerException ignored) {
         }
 
-        return false;
+        return "207";
     }
-
 
     @Override
     public Post createPost(String author, String title, String content) {
@@ -235,7 +232,7 @@ public class Database implements WinsomeDatabase {
 
             u.setDateOfLastPost(p.date().toDate());
 
-            graphSaver.savePost(p);
+            saver.asyncExecute(() -> graphSaver.savePost(p), StandardPriority.VERY_HIGH);
             return p;
         } catch (NullPointerException e) {
             return null;
@@ -246,28 +243,83 @@ public class Database implements WinsomeDatabase {
         return tablePosts.get(idPost);
     }
 
-
     @Override
-    public HashMap<String, Object> viewFriendPost(String whoWantToView, UUID idPost) {
+    public HashMap<String, Object> viewFriendPost(String username, UUID idPost) {
         Post p = getPost(idPost);
-        User u = getUser(whoWantToView);
+        User u = getUser(username);
         if (p != null && u != null) {
-            HashMap<String, Object> post = new HashMap<>();
+            if (!u.getFollowing().contains(p.getAuthor()) && !u.getUsername().equals(p.getAuthor())) {
+                return new HashMap<>(0);
+            }
 
-            GroupNode comments = p.getCommentsGroupNode();
-            GroupNode likes = p.getLikesGroupNode();
-
-            post.put("TITLE", p.getTitle());
-            post.put("CONTENT", p.getContent());
-            post.put("LIKES", graph.adjacentNodes(likes));
-            post.put("COMMENTS", graph.adjacentNodes(comments));
-
-            return post;
+            return postToMap(p);
         }
 
-        return new HashMap<>();
+        return null;
     }
 
+    //metodo per stabilire se un rewin esiste ancora oppure no
+    @Override
+    public HashMap<String, Object> openRewin(String rewinAuthor, UUID idPost) {
+        User u = getUser(rewinAuthor);
+        if (u != null) {
+            GroupNode posts = u.getPostsGroupNode();
+            if (!graph.adjacentNodes(posts).contains(new GraphNode<>(idPost))) {
+                return new HashMap<>(0);
+            }
+
+            return postToMap(getPost(idPost));
+        }
+
+        return null;
+    }
+
+    private HashMap<String, Object> postToMap(Post p) {
+        HashMap<String, Object> post = new HashMap<>();
+
+        GroupNode comments = p.getCommentsGroupNode();
+        GroupNode likes = p.getLikesGroupNode();
+
+        post.put("TITLE", p.getTitle());
+        post.put("CONTENT", p.getContent());
+        post.put("LIKES", graph.adjacentNodes(likes));
+        post.put("COMMENTS", graph.adjacentNodes(comments));
+
+        return post;
+    }
+
+    public Set<SimpleComment> getCommentsFromDate(UUID idPost, String date) throws ParseException {
+        Post p = tablePosts.get(idPost);
+        if(p != null) {
+            GroupNode commentsGroupNode = p.getCommentsGroupNode();
+            Set<Node> comments = graph.adjacentNodes(commentsGroupNode);
+
+            HashSet<SimpleComment> set = new HashSet<>();
+            if(date.equals("0")) {
+                for (Node n : comments) {
+                    if(n instanceof GraphNode<?> g && g.getValue() instanceof Comment c) {
+                        set.add(c.toSimpleComment());
+                    }
+                }
+
+                return set;
+            }
+
+            SimpleDateFormat format = Database.getDateFormat().getSimpleDateFormat();
+            Date d = format.parse(date);
+            for (Node n : comments) {
+                if(n instanceof GraphNode<?> g && g.getValue() instanceof Comment c) {
+                    if(format.parse(c.getDate()).after(d)) {
+                        set.add(c.toSimpleComment());
+                    }
+                }
+            }
+
+            return set;
+        }
+
+        return null;
+    }
 
     @Override
     public Set<Node> getAllPostsOf(String username) {
@@ -296,14 +348,13 @@ public class Database implements WinsomeDatabase {
         }
     }
 
-
     @Override
     public Map<String, Set<Node>> getLatestFriendsPostsOf(String username, Map<String, String> dateMap) {
         User me = tableUsers.get(username);
-        if (me == null) return new HashMap<>();
+        if (me == null) return null;
 
         HashMap<String, Set<Node>> result = new HashMap<>();
-        SimpleDateFormat format = new SimpleDateFormat(Database.getDateFormat().toString());
+        SimpleDateFormat format = Database.getDateFormat().getSimpleDateFormat();
 
         for (Map.Entry<String, String> entry : dateMap.entrySet()) {
             String follow = entry.getKey();
@@ -313,20 +364,26 @@ public class Database implements WinsomeDatabase {
             try {
                 User friend = Objects.requireNonNull(tableUsers.get(follow));
 
-                if(date.equals("0")){
+                if (date.equals("0")) {
                     Set<Node> nodes = graph.adjacentNodes(friend.getPostsGroupNode());
                     result.put(follow, nodes);
                     continue;
                 }
 
-                Date d = format.parse(date);
+                Date d;
+                try {
+                    d = format.parse(date);
+                }catch (ParseException e) {
+                    return null;
+                }
                 //se la amico ha postato qualcosa dopo la data d
                 if (friend.getDateOfLastPost().after(d)) {
                     Set<Node> nodes = graph.adjacentNodes(friend.getPostsGroupNode());
                     Set<Node> postsAfterDate = nodes.stream()
 //                            .parallel()
                             .filter(node -> {
-                                if (node instanceof GraphNode<?> g && g.getValue() instanceof Post p) {
+                                if (node instanceof GraphNode<?> g && g.getValue() instanceof UUID id) {
+                                    Post p = tablePosts.get(id);
                                     return p.date().toDate().after(d);
                                 }
 
@@ -337,7 +394,7 @@ public class Database implements WinsomeDatabase {
                 }
 
 
-            } catch (ParseException | NullPointerException e) {
+            } catch (NullPointerException e) {
                 e.printStackTrace();
             }
         }
@@ -346,57 +403,70 @@ public class Database implements WinsomeDatabase {
     }
 
     @Override
-    public boolean rewinFriendsPost(String username, UUID idPost) {
+    public String rewinFriendsPost(String username, UUID idPost) {
         try {
             User u = Objects.requireNonNull(tableUsers.get(username));
             Post p = Objects.requireNonNull(tablePosts.get(idPost));
-            if (!u.getFollowing().contains(p.getAuthor())) return false;
+            if (!u.getFollowing().contains(p.getAuthor())) return "205";
 
             GroupNode posts = u.getPostsGroupNode();
             try {
-                if (graph.adjacentNodes(posts).contains(new GraphNode<>(idPost))) return false;
+                if (graph.adjacentNodes(posts).contains(new GraphNode<>(idPost))) return "209";
             } catch (NullPointerException e) {
                 e.printStackTrace();
-                return false;
+                return "208";
             }
 
             GraphNode<UUID> rewinNode = new GraphNode<>(idPost);
             graph.putEdge(posts, rewinNode);
-            graphSaver.saveRewin(u, idPost);
-            return true;
+            saver.asyncExecute(() -> graphSaver.saveRewin(u, idPost), StandardPriority.HIGH);
+            return "200";
         } catch (NullPointerException ignored) {
 
         }
 
-        return false;
+        return "210";
     }
 
-
     @Override
-    public boolean removeRewin(String username, UUID idPost) {
+    public String removeRewin(String username, UUID idPost) {
         User u = tableUsers.get(username);
         Post p = tablePosts.get(idPost);
         if (u != null & p != null) {
-            if (!u.getFollowing().contains(p.getAuthor())) return false;
+            if (!u.getFollowing().contains(p.getAuthor())) return "205";
+
             GroupNode posts = u.getPostsGroupNode();
             GraphNode<UUID> rewinNode = new GraphNode<>(idPost);
 
             graph.removeEdge(posts, rewinNode);
-            graphSaver.removeRewinFromFile(username, idPost);
-            return true;
+            saver.asyncExecute(() -> graphSaver.removeRewinFromFile(username, idPost), StandardPriority.LOW);
+            return "200";
         }
 
-        return false;
+        return "210";
     }
 
-
     @Override
-    public boolean appendComment(String username, UUID idPost, String author, String content) {
+    public Comment appendComment(UUID idPost, String author, String content) throws UnsupportedOperationException {
         Post p = tablePosts.get(idPost);
-        User u = tableUsers.get(username);
+        User u = tableUsers.get(author);
 
+//   Codice per controllare se il commento è ammissibile oppure no.
+//   Il commento non è ammissibile se sto cercando di metterlo ad un Rewin che nessun mio following ha "rewinnato".
+//   Supponiamo che A voglia mettere il commento ad un Post "rewinnato" da un utente B:
+//   se nessuno dei follow di A segue B, vuol dire che nessun utente ha "rewinnato" quel post.
         if (p != null && u != null) {
-            if (!u.getFollowing().contains(p.getAuthor())) return false;
+            boolean ok = false;
+            for (String f1 : u.getFollowing()) {
+                User followOfF1 = tableUsers.get(f1);
+                if(followOfF1.getFollowing().contains(p.getAuthor())){
+                    ok = true;
+                    break;
+                }
+            }
+            if(!ok) {
+                throw new UnsupportedOperationException();
+            }
 
             Comment c = new Comment(idPost, author, content);
 
@@ -404,72 +474,89 @@ public class Database implements WinsomeDatabase {
             GroupNode commentsGroup = tablePosts.get(idPost).getCommentsGroupNode();
 
             graph.putEdge(commentsGroup, commentNode);
-            graph.putEdge(newEntryGroup, commentNode);
-            graphSaver.saveComment(tablePosts.get(idPost).getAuthor(), c);
-            return true;
+            entries.add(c);
+            saver.asyncExecute(() -> graphSaver.saveComment(tablePosts.get(idPost).getAuthor(), c), StandardPriority.NORMAL);
+            return c;
         }
 
-        return false;
+        return null;
     }
 
-
     @Override
-    public boolean appendLike(String username, UUID idPost) {
+    public String appendLike(String username, UUID idPost) {
         return appendLikeDislike(username, idPost, Like.type.LIKE);
     }
 
-
     @Override
-    public boolean appendDislike(String username, UUID idPost) {
+    public String appendDislike(String username, UUID idPost) {
         return appendLikeDislike(username, idPost, Like.type.DISLIKE);
     }
 
-    private boolean appendLikeDislike(String username, UUID idPost, Like.type type) {
+    private String appendLikeDislike(String username, UUID idPost, Like.type type) {
         User u = tableUsers.get(username);
         Post p = tablePosts.get(idPost);
-        if (u == null || p == null) return false;
-        if (!u.getFollowing().contains(p.getAuthor())) return false;
-        if(u.getUsername().equals(p.getAuthor())) return false;
+        if (u == null || p == null) return "210";
+        if (u.getUsername().equals(p.getAuthor())) return "211";
+
+//   Codice per controllare se il like è ammissibile oppure no.
+//   Il like non è ammissibile se sto cercando di metterlo ad un Rewin che nessun mio following ha "rewinnato".
+//   Supponiamo che A voglia mettere il like ad un Post "rewinnato" da un utente B:
+//   se nessuno dei follow di A segue B, vuol dire che nessun utente ha "rewinnato" quel post.
+        boolean ok = false;
+        for (String f1 : u.getFollowing()) {
+            User followOfF1 = tableUsers.get(f1);
+            if(followOfF1.getFollowing().contains(p.getAuthor())){
+                ok = true;
+                break;
+            }
+        }
+        if(!ok) {
+            return "217";
+        }
 
         Post post = tablePosts.get(idPost);
-        if (post == null) return false;
+        if (post == null) return "208";
 
         GroupNode likesGroup = post.getLikesGroupNode();
 
         Set<Node> likes = graph.adjacentNodes(post.getLikesGroupNode());
-//        for (Node n : likes) {
-//            if(n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
-//                if(l.getUsername().equals(username) && l.getType() != type) {
-//                    l.setType(type);
-//                    graph.putEdge(newEntryGroup, n);
-//                    graphSaver.saveLike(username, l);
-//                }
-//                else if(l.getUsername().equals(username) && l.getType() == type)
-//                    return false;
-//            }
-//        }
         for (Node n : likes) {
-            if(n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
-                if(l.getUsername().equals(username))
-                    return false;
+            if (n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
+                if (l.getUsername().equals(username)) {
+                    if (l.getType() != type) {
+                        l.setType(type);
+                        saver.asyncExecute(() -> graphSaver.saveLike(username, l), StandardPriority.NORMAL);
+                        return "0"; //like cambiato
+                    } else if (l.getType() == type)
+                        return "212";
+                }
             }
         }
+
+//  Semplice controllo se il like è stato messo (alternativa al cambio Like)
+//  In questo caso, like/dislike già messo = errore
+//        for (Node n : likes) {
+//            if (n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
+//                if (l.getUsername().equals(username))
+//                    return "212";
+//            }
+//        }
 
         Like like = new Like(idPost, type, username);
         GraphNode<Like> likeNode = new GraphNode<>(like);
 
         graph.putEdge(likesGroup, likeNode);
-        graph.putEdge(newEntryGroup, likeNode);
+        entries.add(like);
         graphSaver.saveLike(post.getAuthor(), like);
-        return true;
+        return "200";
     }
 
     //username vuole cancellare un post con id=idPost
     @Override
-    public boolean removePost(String username, UUID idPost) {
+    public String removePost(String username, UUID idPost) {
         Post p = tablePosts.remove(idPost);
         if (p != null) {
-            if (!username.equals(p.getAuthor())) return false;
+            if (!username.equals(p.getAuthor())) return "213";
 
             GroupNode commentsGroup = p.getCommentsGroupNode();
             GroupNode likesGroup = p.getLikesGroupNode();
@@ -491,32 +578,37 @@ public class Database implements WinsomeDatabase {
                 graph.removeNode(node);
             }
 
-            graphSaver.removePost(p, commentsSet, likesSet);
+            saver.asyncExecute(() -> graphSaver.removePost(p, commentsSet, likesSet), StandardPriority.LOW);
             graph.removeNode(commentsGroup);
             graph.removeNode(likesGroup);
             graph.removeNode(new GraphNode<>(p.getId()));
             savePosts();
-            return true;
+            return "200";
         }
 
-        return false;
+        return "208";
     }
 
-
     @Override
-    public Set<Node> pullNewEntries() {
-        Set<Node> newEntries = graph.adjacentNodes(newEntryGroup);
-
-        for (Node n : newEntries) {
-            if (n instanceof GraphNode<?> g && g.getValue() instanceof Comment c) {
-                graphSaver.removeEntry(tablePosts.get(c.getIdPost()).getAuthor(), c);
-            } else if (n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
-                graphSaver.removeEntry(tablePosts.get(l.getIdPost()).getAuthor(), l);
+    public ArrayList<EntriesStorage.Entry> pullNewEntries() {
+        ArrayList<EntriesStorage.Entry> entries = this.entries.pull();
+        for (EntriesStorage.Entry e : entries) {
+            for (Comment c : e.COMMENTS) {
+                saver.asyncExecute(() -> graphSaver.removeEntry(tablePosts.get(c.getIdPost()).getAuthor(), c), StandardPriority.LOW);
             }
+            for (Like l : e.LIKES) {
+                saver.asyncExecute(() -> graphSaver.removeEntry(tablePosts.get(l.getIdPost()).getAuthor(), l), StandardPriority.LOW);
+            }
+
+            Post p = getPost(e.HEADER.getIdPost());
+            p.incrementInteractions();
         }
 
-        graph.clearEdges(newEntryGroup);
-        return newEntries;
+        return entries;
+    }
+
+    public EntriesStorage getEntriesStorage() {
+        return entries;
     }
 
     public void save() {
@@ -568,22 +660,37 @@ public class Database implements WinsomeDatabase {
         postsReader.close();
     }
 
-    public void printGraph() {
-        for (Node n : graph.nodes()) {
-            System.out.print(n + " -> ");
-            System.out.println(graph.adjacentNodes(n));
-        }
-    }
-
     public WinsomeGraph getGraph() {
         return graph;
     }
 
-    public static DatabaseDate getDateFormat() {
-        return new DatabaseDate();
+    @Override
+    public void close() throws IOException {
+        if (saver != null) {
+            saver.interrupt();
+            try {
+                saver.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
-    public static String getName() {
-        return "graphDB";
+    public static class DatabaseDate {
+        private final String dateS;
+        private final SimpleDateFormat dateSDF;
+
+        public DatabaseDate() {
+            dateS = "dd/MM/yy - HH:mm:ss";
+            dateSDF = new SimpleDateFormat("dd/MM/yy - HH:mm:ss");
+        }
+
+        public String toString() {
+            return dateS;
+        }
+
+        public SimpleDateFormat getSimpleDateFormat() {
+            return dateSDF;
+        }
     }
 }

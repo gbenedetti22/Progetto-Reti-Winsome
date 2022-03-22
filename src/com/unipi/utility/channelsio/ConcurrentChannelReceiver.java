@@ -10,11 +10,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class ConcurrentChannelReceiver {
+    private final String SEPARATOR = System.lineSeparator();
     private SocketChannel channel;
     private StringBuilder builder;
     private ConcurrentHashMap<SocketChannel, String> chunks;
     private ConcurrentHashMap<SocketChannel, ReentrantLock> locks;
-    private final String SEPARATOR = System.lineSeparator();
     private ByteBuffer buffer;
 
     protected ConcurrentChannelReceiver(ConcurrentHashMap<SocketChannel, String> chunks, ConcurrentHashMap<SocketChannel, ReentrantLock> locks) {
@@ -44,13 +44,13 @@ public class ConcurrentChannelReceiver {
         while (builder.indexOf(SEPARATOR, (offset - nBytes) - SEPARATOR.length()) == -1) {
             try {
                 nBytes = channel.read(buffer);
-            }catch (ClosedChannelException e){
+            } catch (ClosedChannelException e) {
                 ReentrantLock lock = locks.remove(channel);
-                if(lock != null)
+                if (lock != null)
                     lock.unlock();
 
                 return null;
-            }catch (SocketException e){
+            } catch (SocketException e) {
                 locks.get(channel).unlock();
                 return null;
             }
@@ -89,7 +89,7 @@ public class ConcurrentChannelReceiver {
         if (channel == null) return -1;
 
         String s = receiveLine();
-        if (s == null){
+        if (s == null) {
             throw new EOFException("End of stream reached");
         }
 
@@ -121,14 +121,14 @@ public class ConcurrentChannelReceiver {
         } catch (EOFException | ClassNotFoundException e) {
             e.printStackTrace();
             return null;
-        }finally {
+        } finally {
             locks.get(channel).unlock();
         }
     }
 
     public void setChannel(SocketChannel channel) {
         this.channel = channel;
-        if(channel != null)
+        if (channel != null)
             locks.putIfAbsent(channel, new ReentrantLock());
     }
 

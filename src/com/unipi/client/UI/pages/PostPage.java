@@ -1,7 +1,6 @@
 package com.unipi.client.UI.pages;
 
 import com.unipi.client.UI.banners.CommentBanner;
-import com.unipi.client.UI.components.BlueButton;
 import com.unipi.client.UI.components.LinkLabel;
 import com.unipi.client.mainFrame.ACTIONS;
 import com.unipi.client.mainFrame.ActionPipe;
@@ -14,10 +13,11 @@ import java.awt.event.MouseListener;
 
 public class PostPage extends JPanel {
     private final JTextPane textPane;
-    private GridBagConstraints gbc;
     private final String title;
     private int numLike;
     private int numDislike;
+    private boolean likeSetted;
+    private boolean dislikeSetted;
     private JLabel labelLike;
     private JLabel labelDislike;
     private CommentsPage commentsPage;
@@ -28,6 +28,9 @@ public class PostPage extends JPanel {
         this.title = title;
         this.id = id;
         this.commentsPage = new CommentsPage(this);
+        this.likeSetted = false;
+        this.dislikeSetted = false;
+
         textPane = new JTextPane();
         textPane.setEditorKit(new WrapEditorKit());
         textPane.setMinimumSize(new Dimension());
@@ -50,27 +53,6 @@ public class PostPage extends JPanel {
         add(backLabel, BorderLayout.NORTH);
     }
 
-    private void setTitle(String title) {
-        if (!title.contains("\n"))
-            title = title.concat("\n");
-
-        StyleContext sc = StyleContext.getDefaultStyleContext();
-
-        AttributeSet aset = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.FontFamily, "Arial Bold");
-        aset = sc.addAttribute(aset, StyleConstants.FontSize, 22);
-
-        textPane.setCaretPosition(0);
-        textPane.setCharacterAttributes(aset, false);
-
-        SimpleAttributeSet center = new SimpleAttributeSet();
-        StyleConstants.setAlignment(center, StyleConstants.ALIGN_CENTER);
-
-        textPane.replaceSelection(title);
-
-        StyledDocument doc = textPane.getStyledDocument();
-        doc.setParagraphAttributes(0, doc.getLength(), center, false);
-    }
-
     private void setContent(String content) {
         StyledDocument doc = textPane.getStyledDocument();
         SimpleAttributeSet left = new SimpleAttributeSet();
@@ -91,7 +73,7 @@ public class PostPage extends JPanel {
         JPanel postTopPanel = new JPanel(new BorderLayout());
 
         JPanel postContainer = new JPanel(new GridBagLayout());
-        gbc = new GridBagConstraints();
+        GridBagConstraints gbc = new GridBagConstraints();
 
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.CENTER;
@@ -171,9 +153,10 @@ public class PostPage extends JPanel {
         labelDislike = new JLabel("0");
         labelDislike.setFont(new Font("Arial", Font.PLAIN, 15));
 
-        LinkLabel comments = new LinkLabel("Commenti", SwingConstants.RIGHT);
+        LinkLabel comments = new LinkLabel("", SwingConstants.RIGHT);
         comments.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 15));
-        comments.setOnMouseClick(commentsPage::open);
+        comments.setIcon(getCommentIcon());
+        comments.setOnMouseClick(()-> ActionPipe.performAction(ACTIONS.GET_LATEST_COMMENTS, commentsPage));
 
         likeDislikePanel.add(like);
         likeDislikePanel.add(labelLike);
@@ -204,6 +187,27 @@ public class PostPage extends JPanel {
         return title;
     }
 
+    private void setTitle(String title) {
+        if (!title.contains("\n"))
+            title = title.concat("\n");
+
+        StyleContext sc = StyleContext.getDefaultStyleContext();
+
+        AttributeSet aset = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.FontFamily, "Arial Bold");
+        aset = sc.addAttribute(aset, StyleConstants.FontSize, 22);
+
+        textPane.setCaretPosition(0);
+        textPane.setCharacterAttributes(aset, false);
+
+        SimpleAttributeSet center = new SimpleAttributeSet();
+        StyleConstants.setAlignment(center, StyleConstants.ALIGN_CENTER);
+
+        textPane.replaceSelection(title);
+
+        StyledDocument doc = textPane.getStyledDocument();
+        doc.setParagraphAttributes(0, doc.getLength(), center, false);
+    }
+
     public String getId() {
         return id;
     }
@@ -219,13 +223,42 @@ public class PostPage extends JPanel {
     }
 
     public void addLike() {
+        if(dislikeSetted) {
+            numDislike--;
+            labelDislike.setText(String.valueOf(numDislike));
+            dislikeSetted = false;
+        }
+
         numLike++;
         labelLike.setText(String.valueOf(numLike));
+        likeSetted = true;
     }
 
     public void addDislike() {
+        if(likeSetted) {
+            numLike--;
+            labelLike.setText(String.valueOf(numLike));
+            likeSetted = false;
+        }
+
         numDislike++;
-        labelLike.setText(String.valueOf(numDislike));
+        labelDislike.setText(String.valueOf(numDislike));
+        dislikeSetted = true;
+    }
+
+    public void setLikeSetted(boolean likeSetted) {
+        this.likeSetted = likeSetted;
+    }
+
+    public void setDislikeSetted(boolean dislikeSetted) {
+        this.dislikeSetted = dislikeSetted;
+    }
+
+    private ImageIcon getCommentIcon() {
+        ImageIcon icon = new ImageIcon("./resources/commentsIcon.png");
+        Image image = icon.getImage();
+        Image scaledImg = image.getScaledInstance(40, 30, Image.SCALE_SMOOTH);
+        return new ImageIcon(scaledImg);
     }
 
     private static class WrapEditorKit extends StyledEditorKit {

@@ -23,42 +23,12 @@ import java.util.function.Consumer;
  * Il byte sulla Pipe scritto viene consumato.
  */
 public class PipedSelector implements Closeable {
-    private static class KeyEntry {
-        private SelectableChannel channel;
-        private Integer ops;
-        private Object attachment;
-
-        public KeyEntry(SelectableChannel channel, Integer ops, Object attachment) {
-            this.channel = channel;
-            this.ops = ops;
-            this.attachment = attachment;
-        }
-
-        public KeyEntry(SelectableChannel channel, Integer ops) {
-            this.channel = channel;
-            this.ops = ops;
-        }
-
-        public SelectableChannel getChannel() {
-            return channel;
-        }
-
-        public Integer getOps() {
-            return ops;
-        }
-
-        public Object getAttachment() {
-            return attachment;
-        }
-    }
-
     private Selector selector;
     private Pipe.SourceChannel pipeIn;
     private Pipe.SinkChannel pipeOut;
     private ByteBuffer inBuffer;
     private ByteBuffer outBuffer;
     private ConcurrentLinkedQueue<KeyEntry> queue;
-
     public PipedSelector() {
         try {
             selector = Selector.open();
@@ -79,6 +49,15 @@ public class PipedSelector implements Closeable {
     }
 
     /**
+     * Crea un nuovo {@link PipedSelector}
+     *
+     * @return il {@link PipedSelector} creato
+     */
+    public static PipedSelector open() {
+        return new PipedSelector();
+    }
+
+    /**
      * <u>Testo copiato da: {@link #insert(SelectableChannel, int, Object)}</u><br>
      * Permette l inserimento diretto senza passare dalla queue.<br>
      * E' fortemente consigliato di usare questa funzione <u>solo</u> nella fase di "preparazione/inizializzazione".<br>
@@ -86,6 +65,7 @@ public class PipedSelector implements Closeable {
      * <br>
      * Questa funzione non è thread-safe, quindi potrebbe far generare {@link ConcurrentModificationException}<br>
      * Il canale inserito viene automaticamente settato come non bloccante mediante la funzione {@link java.nio.channels.SocketChannel#configureBlocking(boolean)}<br>
+     *
      * @param channel il canale da inserire
      * @param ops     l operazione che si vuole svolgere
      */
@@ -105,6 +85,7 @@ public class PipedSelector implements Closeable {
      * <br>
      * Questa funzione non è thread-safe, quindi potrebbe far generare {@link ConcurrentModificationException}<br>
      * Il canale inserito viene automaticamente settato come non bloccante mediante la funzione {@link java.nio.channels.SocketChannel#configureBlocking(boolean)}<br>
+     *
      * @param channel    il canale da inserire
      * @param ops        l operazione che si vuole svolgere
      * @param attachment eventuali dati da associare al canale
@@ -124,6 +105,7 @@ public class PipedSelector implements Closeable {
      * Il thread in attesa sulla select verrà svegliato per poter re-inserire channel dentro il selettore.<br>
      * <br>
      * Il canale inserito viene automaticamente settato come non bloccante mediante la funzione {@link java.nio.channels.SocketChannel#configureBlocking(boolean)}<br>
+     *
      * @param channel il canale da re-inserire
      * @param ops     l operazione che si vuole svolgere
      */
@@ -143,6 +125,7 @@ public class PipedSelector implements Closeable {
      * Il thread in attesa sulla select verrà svegliato per poter re-inserire channel dentro il selettore,<br>
      * <br>
      * Il canale inserito viene automaticamente settato come non bloccante mediante la funzione {@link java.nio.channels.SocketChannel#configureBlocking(boolean)}<br>
+     *
      * @param channel    il canale da re-inserire
      * @param ops        l operazione che si vuole svolgere
      * @param attachment eventuali dati da associare al canale
@@ -179,7 +162,7 @@ public class PipedSelector implements Closeable {
             while (iterator.hasNext()) {
                 SelectionKey key = iterator.next();
                 iterator.remove();
-                if(!key.isValid()) continue;
+                if (!key.isValid()) continue;
 
                 //Leggo 1 byte dalla Pipe e ri-aggiungo il canale
                 if (key.isReadable() && key.channel() instanceof Pipe.SourceChannel) {
@@ -196,8 +179,12 @@ public class PipedSelector implements Closeable {
                     int ops = entry.getOps();
                     Object attachment = entry.getAttachment();
 
-                    channel.configureBlocking(false);
-                    channel.register(selector, ops, attachment);
+                    try {
+                        channel.configureBlocking(false);
+                        channel.register(selector, ops, attachment);
+                    }catch (ClosedChannelException e){
+                        channel.close();
+                    }
                 } else {
                     keyReader.accept(key);
                 }
@@ -205,7 +192,7 @@ public class PipedSelector implements Closeable {
             }
         } catch (ClosedSelectorException ignored) {
 
-        } catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -222,12 +209,32 @@ public class PipedSelector implements Closeable {
         pipeIn.close();
     }
 
-    /**
-     * Crea un nuovo {@link PipedSelector}
-     *
-     * @return il {@link PipedSelector} creato
-     */
-    public static PipedSelector open() {
-        return new PipedSelector();
+    private static class KeyEntry {
+        private SelectableChannel channel;
+        private Integer ops;
+        private Object attachment;
+
+        public KeyEntry(SelectableChannel channel, Integer ops, Object attachment) {
+            this.channel = channel;
+            this.ops = ops;
+            this.attachment = attachment;
+        }
+
+        public KeyEntry(SelectableChannel channel, Integer ops) {
+            this.channel = channel;
+            this.ops = ops;
+        }
+
+        public SelectableChannel getChannel() {
+            return channel;
+        }
+
+        public Integer getOps() {
+            return ops;
+        }
+
+        public Object getAttachment() {
+            return attachment;
+        }
     }
 }
