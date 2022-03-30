@@ -1,11 +1,11 @@
 package com.unipi.server;
 
 import com.unipi.common.Console;
-import com.unipi.database.EntriesStorage;
+import com.unipi.database.DBResponse;
 import com.unipi.database.tables.Comment;
-import com.unipi.database.tables.Like;
-import com.unipi.utility.channelsio.ChannelReceiver;
-import com.unipi.utility.channelsio.ChannelSender;
+import com.unipi.database.utility.EntriesStorage;
+import com.unipi.utility.channelsio.ChannelLineReceiver;
+import com.unipi.utility.channelsio.ChannelLineSender;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -19,15 +19,15 @@ import java.util.concurrent.TimeUnit;
 public class RewardCalculator extends Thread {
     private char unit;
     private long timeout;
-    private ChannelSender out;
-    private ChannelReceiver in;
+    private ChannelLineSender out;
+    private ChannelLineReceiver in;
     private SimpleDateFormat sdf;
     private SocketChannel socket;
 
     public RewardCalculator() {
         try {
             initClock();
-        }catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
             e.printStackTrace();
             return;
         }
@@ -38,8 +38,8 @@ public class RewardCalculator extends Thread {
 
         try {
             socket = SocketChannel.open(new InetSocketAddress(dbAddress, dbPort));
-            out = new ChannelSender(socket);
-            in = new ChannelReceiver(socket);
+            out = new ChannelLineSender(socket);
+            in = new ChannelLineReceiver(socket);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -72,66 +72,48 @@ public class RewardCalculator extends Thread {
 
         out.sendLine(command);
         int size = in.receiveInteger();
-        if (size == 0) return;
+        if (size == 0){
+            System.out.println("Non ci sono ricompense da calcolare");
+            return;
+        }
 
+        // O(new_people_commenting)
         for (int i = 0; i < size; i++) {
             EntriesStorage.Entry entry = (EntriesStorage.Entry) in.receiveObject();
-            double n1 = 0;
+            double n1;
             double n2 = 0;
 
-            HashSet<String> curatori = new HashSet<>();
             String author = entry.HEADER.getAuthor();
+            HashSet<String> curatori = entry.HEADER.getCuratori();
 
-            for (Like l : entry.LIKES) {
-                if (l.getType() == Like.type.LIKE)
-                    n1++;
-                else
-                    n1 = Math.max(0, --n1);
-
-                curatori.add(l.getUsername());
-            }
-
+            n1 = Math.max(0, entry.LIKES.size() - entry.DISLIKES.size());
             n1 = round(Math.log(n1 + 1));
 
-            //i commenti sono partizionati per autore
-            long Cp = 0;
-            ArrayList<Comment> comments = entry.COMMENTS;
-            if (!comments.isEmpty()) {
-                for (int j = 0; j <= comments.size() - 1; j++) {
-                    if (!comments.get(j).getAuthor().equals(comments.get(Math.min(comments.size() - 1, j + 1)).getAuthor())) {
-                        Cp++;
-                        n2 += (2 / (1 + Math.pow(Math.E, -(Cp - 1))));
-                        Cp = 0;
-                        curatori.add(comments.get(j).getAuthor());
-                        continue;
-                    }
+            HashMap<String, ArrayList<Comment>> comments = entry.COMMENTS;
 
-                    Cp++;
-                }
-
-                //l ultimo elemento non viene considerato
+            //Ciclo per new_people_commenting
+            for (ArrayList<Comment> newComments : comments.values()) {
+                int Cp = newComments.size();
                 n2 += (2 / (1 + Math.pow(Math.E, -(Cp - 1))));
-                curatori.add(comments.get(comments.size() - 1).getAuthor());
-
-                n2 = round(Math.log(n2 + 1));
             }
 
+            n2 = round(Math.log(n2 + 1));
             double reward = (n1 + n2) / entry.HEADER.getInteractions();
+            Console.log("Calcolata ricompensa", reward);
             int author_percentage = (int) ServerProperties.getValue(ServerProperties.NAMES.AUTHOR_PERCENTAGE);
 
-            //aggiorni l autore
             double author_reward = round(reward * author_percentage / 100);
-            out.sendLine(String.format("UPDATE: %s %s %s", author, author_reward, sdf.format(new Date())));
-            String response = in.receiveLine();
-            if (!response.equals("OK")) {
+            out.sendLine(String.format("UPDATE: %s %s %s %s", author, author_reward, sdf.format(new Date()), entry.HEADER.getIdPost().toString()));
+            DBResponse response = (DBResponse) in.receiveObject();
+            if (!response.getCode().equals(DBResponse.OK)) {
                 Console.err("Errore nel salvataggio delle ricompense per: " + author);
             }
 
             //aggiorno i curatori
             double others = round((reward - author_reward) / curatori.size());
             out.sendLine(String.format("UPDATE: %s %s %s", curatori, others, sdf.format(new Date())));
-            response = in.receiveLine();
-            if (!response.equals("OK")) {
+            response = (DBResponse) in.receiveObject();
+            if (!response.getCode().equals(DBResponse.OK)) {
                 Console.err(response);
             }
         }
@@ -152,16 +134,25 @@ public class RewardCalculator extends Thread {
 
     }
 
-    private void initClock() throws NumberFormatException{
+    private void initClock() throws NumberFormatException {
         String delay = (String) ServerProperties.getValues().get(ServerProperties.NAMES.REWARD_TIME_DELAY);
         unit = delay.charAt(delay.length() - 1);
 
         String time = delay.substring(0, delay.length() - 1);
 
-        timeout = Long.parseLong(time);
+        try {
+            timeout = Long.parseLong(time);
+        }catch (NumberFormatException e){
+            System.err.println("Inserito un valore non valido per il tempo di attesa");
+            System.err.println("Verrà usato il valore di default");
+            timeout = 1;
+            unit = 'w';
+            return;
+        }
+
         if (timeout <= 0) {
-            Console.err("Errore nella conversione del tempo per il calcolo delle rimpense");
-            Console.err("Verrà usato il valore di default");
+            System.err.println("Errore nella conversione del tempo per il calcolo delle rimpense");
+            System.err.println("Verrà usato il valore di default");
 
             unit = 's';
             timeout = 5;

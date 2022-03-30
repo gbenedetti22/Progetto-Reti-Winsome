@@ -1,6 +1,7 @@
 package com.unipi.server;
 
 import com.unipi.database.utility.ThreadWorker;
+import com.unipi.utility.channelsio.ChannelLineSender;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -29,6 +30,11 @@ public class ServerThreadWorker extends ThreadWorker {
     public void interrupt() {
         super.interrupt();
         try {
+            ChannelLineSender out = new ChannelLineSender(socket);
+            try {
+                System.out.println("Chiusura Database..");
+                out.sendLine("CLOSE");
+            } catch (IOException ignored){}
             socket.close();
         } catch (IOException e) {
             e.printStackTrace();

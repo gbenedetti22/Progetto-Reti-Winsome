@@ -25,14 +25,12 @@ public class GraphLoader {
     private Gson gson;
     private Database db;
     private WinsomeGraph graph;
-//    private GroupNode newEntryGroup;
 
     public GraphLoader(Database db, WinsomeGraph graph) {
         this.db = db;
         this.graph = graph;
 
         gson = new GsonBuilder().setPrettyPrinting().setDateFormat(Database.getDateFormat().toString()).create();
-//        newEntryGroup = new GroupNode("NEW ENTRY", null);
     }
 
     public void loadGraph() throws IOException {
@@ -147,7 +145,12 @@ public class GraphLoader {
         try {
             String[] splittedRecord = record.split(";", 2);
             String idComment = splittedRecord[0];
-            String newEntryLabel = splittedRecord[1];
+            String newEntryLabel;
+            try {
+                newEntryLabel = splittedRecord[1];
+            }catch (ArrayIndexOutOfBoundsException e) {
+                newEntryLabel = "";
+            }
 
             String path = jsonPathOf(idComment);
             if (!Files.exists(Paths.get(path), LinkOption.NOFOLLOW_LINKS)) return false;
@@ -167,8 +170,7 @@ public class GraphLoader {
                 GroupNode commentsGroup = p.getCommentsGroupNode();
 
                 graph.putEdge(commentsGroup, commentNode);
-                if (!newEntryLabel.startsWith("#")) {
-//                    graph.putEdge(newEntryGroup, commentNode);
+                if (!newEntryLabel.startsWith("#") && !newEntryLabel.isBlank()) {
                     db.getEntriesStorage().add(c);
                 }
                 return true;
@@ -186,7 +188,12 @@ public class GraphLoader {
         try {
             String[] splittedRecord = record.split(";", 2);
             String idLike = splittedRecord[0];
-            String newEntryLabel = splittedRecord[1];
+            String newEntryLabel;
+            try {
+                newEntryLabel = splittedRecord[1];
+            }catch (ArrayIndexOutOfBoundsException e) {
+                newEntryLabel = "";
+            }
 
             String path = jsonPathOf(idLike);
             if (!Files.exists(Paths.get(path), LinkOption.NOFOLLOW_LINKS)) return false;
@@ -206,8 +213,7 @@ public class GraphLoader {
                 GroupNode likesGroup = p.getLikesGroupNode();
 
                 graph.putEdge(likesGroup, likeNode);
-                if (!newEntryLabel.startsWith("#")) {
-//                    graph.putEdge(newEntryGroup, likeNode);
+                if (!newEntryLabel.startsWith("#") && !newEntryLabel.isBlank()) {
                     db.getEntriesStorage().add(l);
                 }
 

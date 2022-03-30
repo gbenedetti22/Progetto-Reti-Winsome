@@ -22,10 +22,12 @@ public class PostPage extends JPanel {
     private JLabel labelDislike;
     private CommentsPage commentsPage;
     private String id;
+    private String author;
 
-    public PostPage(String id, String title, String content) {
+    public PostPage(String id, String author, String title, String content) {
         super(new BorderLayout());
         this.title = title;
+        this.author = author;
         this.id = id;
         this.commentsPage = new CommentsPage(this);
         this.likeSetted = false;
@@ -153,6 +155,10 @@ public class PostPage extends JPanel {
         labelDislike = new JLabel("0");
         labelDislike.setFont(new Font("Arial", Font.PLAIN, 15));
 
+        JLabel authorLabel = new JLabel("Autore del Post: " + author);
+        authorLabel.setFont(new Font("Arial", Font.PLAIN, 15));
+        authorLabel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
+
         LinkLabel comments = new LinkLabel("", SwingConstants.RIGHT);
         comments.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 15));
         comments.setIcon(getCommentIcon());
@@ -162,6 +168,7 @@ public class PostPage extends JPanel {
         likeDislikePanel.add(labelLike);
         likeDislikePanel.add(dislike);
         likeDislikePanel.add(labelDislike);
+        likeDislikePanel.add(authorLabel);
 
         JPanel instrumentsPanel = new JPanel(new BorderLayout());
         instrumentsPanel.setBackground(Color.WHITE);

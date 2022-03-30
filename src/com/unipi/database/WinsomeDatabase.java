@@ -4,6 +4,7 @@ import com.unipi.database.graph.graphNodes.Node;
 import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Post;
 import com.unipi.database.tables.User;
+import com.unipi.database.utility.EntriesStorage;
 
 import java.util.*;
 

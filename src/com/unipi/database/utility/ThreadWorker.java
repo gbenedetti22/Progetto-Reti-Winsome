@@ -1,30 +1,30 @@
 package com.unipi.database.utility;
 
-import com.unipi.utility.channelsio.ChannelSender;
-import com.unipi.utility.channelsio.ConcurrentChannelReceiver;
-import com.unipi.utility.channelsio.Receiver;
+import com.unipi.utility.channelsio.ChannelLineSender;
+import com.unipi.utility.channelsio.ConcurrentChannelLineReceiver;
+import com.unipi.utility.channelsio.ChannelReceiver;
 
 import java.util.concurrent.ThreadFactory;
 
 public class ThreadWorker extends Thread {
-    private ConcurrentChannelReceiver receiver;
-    private ChannelSender sender;
+    private ConcurrentChannelLineReceiver receiver;
+    private ChannelLineSender sender;
     public ThreadWorker(Runnable target) {
         super(target);
 
-        receiver = Receiver.newConcurrentReceiver();
-        sender = new ChannelSender();
+        receiver = ChannelReceiver.newConcurrentReceiver();
+        sender = new ChannelLineSender();
     }
 
     public static ThreadFactory getWorkerFactory() {
         return new WorkerFactory();
     }
 
-    public ConcurrentChannelReceiver getReceiver() {
+    public ConcurrentChannelLineReceiver getReceiver() {
         return receiver;
     }
 
-    public ChannelSender getSender() {
+    public ChannelLineSender getSender() {
         return sender;
     }
 

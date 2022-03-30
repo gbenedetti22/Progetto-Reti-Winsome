@@ -1,11 +1,11 @@
 package com.unipi.client;
 
 import com.google.gson.Gson;
-import com.unipi.common.Console;
+import com.unipi.client.mainFrame.MainFrame;
 import com.unipi.server.requestHandler.WSRequest;
 import com.unipi.server.requestHandler.WSResponse;
-import com.unipi.utility.channelsio.ChannelReceiver;
-import com.unipi.utility.channelsio.ChannelSender;
+import com.unipi.utility.channelsio.ChannelLineReceiver;
+import com.unipi.utility.channelsio.ChannelLineSender;
 
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -18,8 +18,8 @@ public class ServiceManager extends Thread {
     private LinkedBlockingQueue<WSResponse> responsesQueue;
     private boolean running;
     private Gson gson;
-    private ChannelSender out;
-    private ChannelReceiver in;
+    private ChannelLineSender out;
+    private ChannelLineReceiver in;
     private SocketChannel socket;
 
     public ServiceManager(SocketChannel socket) {
@@ -27,8 +27,8 @@ public class ServiceManager extends Thread {
         this.responsesQueue = new LinkedBlockingQueue<>();
         this.gson = new Gson();
         this.running = true;
-        this.out = new ChannelSender();
-        this.in = new ChannelReceiver();
+        this.out = new ChannelLineSender();
+        this.in = new ChannelLineReceiver();
         this.socket = socket;
 
         out.setChannel(socket);
@@ -59,10 +59,14 @@ public class ServiceManager extends Thread {
                 WSRequest request = entry.getRequest();
 
                 String json = gson.toJson(request);
-                out.sendLine(json);
+                try {
+                    out.sendLine(json);
+                }catch (IOException e){
+                    MainFrame.showErrorMessage("Connessione con il Server persa. Riprovare più tardi.");
+                    System.exit(0);
+                }
 
                 String jsonResponse = in.receiveLine();
-
                 WSResponse response = gson.fromJson(jsonResponse, WSResponse.class);
 
                 if (entry.isCallbackSetted()) {

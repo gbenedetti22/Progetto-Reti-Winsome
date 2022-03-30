@@ -6,33 +6,36 @@ import com.unipi.database.requestHandler.RequestWriter;
 import com.unipi.database.utility.ThreadWorker;
 import com.unipi.utility.channelsio.PipedSelector;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static com.unipi.server.ServerMain.debugTask;
+
 public class DatabaseMain {
     private static final PipedSelector selector = new PipedSelector();
-    private static final Database database = new Database();
+    private static Database database;
     private static ExecutorService threadPool = Executors.newCachedThreadPool(ThreadWorker.getWorkerFactory());
-    private static boolean running = true;
     private static int port = 45675;
     private static boolean debug = false;
+    private static boolean running = true;
     private static String delay = "5m";
+    private static Thread closingThread;
 
     public static void main(String[] args) {
-        readArgs(args);
+        readProp();
+        database = new Database();
+        System.out.println("Delay salvataggio: " + delay);
         database.startSaving(delay);
 
         try {
@@ -41,7 +44,7 @@ public class DatabaseMain {
 
             selector.insert(server, SelectionKey.OP_ACCEPT);
 
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            closingThread = new Thread(() -> {
                 try {
                     System.out.println("Chiusura Database..");
                     database.close();
@@ -54,16 +57,16 @@ public class DatabaseMain {
                 }
 
                 System.out.println("Bye bye :)");
+            });
+            closingThread.setName("CLOSING-THREAD");
+            Runtime.getRuntime().addShutdownHook(closingThread);
 
-            }));
-
-            System.out.println(running ? "Database Online" : "");
+            System.out.println("Database Online");
             System.out.println();
             while (running) {
                 selector.selectKey(DatabaseMain::readSelectedKey);
             }
 
-            server.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -98,71 +101,65 @@ public class DatabaseMain {
         }
     }
 
-    private static void debugTask(Future<?> task) {
-        new Thread(() -> {
-            try {
-                task.get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
+    private static void readProp() {
+        Properties prop = new Properties();
 
-    private static void readArgs(String[] args) {
-        for (String s : args) {
-            switch (s.toLowerCase()) {
-                case "--clear" -> clearDatabase();
-                case "--debug" -> debug = true;
-                default -> {
-                    if (s.startsWith("port")) {
+        try {
+            FileReader reader = new FileReader("prop.properties");
+            prop.load(reader);
+            reader.close();
+
+            for (Map.Entry<Object, Object> entry : prop.entrySet()) {
+                switch (entry.getKey().toString().toLowerCase()) {
+                    case "clear" -> {
+                        if(entry.getValue().toString().equals("true")) {
+                            clearDatabase();
+                        }
+                    }
+                    case "debug" -> debug = true;
+                    case "port" -> {
                         String insertedPort = "";
                         try {
-                            insertedPort = s.split("=", 2)[1];
+                            insertedPort = entry.getValue().toString();
                             port = Integer.parseInt(insertedPort);
                         } catch (NumberFormatException e) {
                             System.err.println(insertedPort + ": non è una porta valida");
-                            stop();
+                            System.err.println("Verrà usato il valore di default");
                         }
                     }
 
-                    if(s.startsWith("delay")) {
-                        try {
-                            delay = s.split("=", 2)[1];
-                        }catch (Exception e) {
-                            System.err.println("Inserito comando errato, verrà usato il valore di default");
-                            delay = "5m";
-                        }
-                    }
+                    case "delay" -> delay = entry.getValue().toString();
                 }
+
             }
-        }
 
-    }
-
-    public static void stop() {
-        running = false;
-
-        try {
-            selector.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
+    //funzione molto rudimentale, serve più a dare l idea che ad essere efficiente
     private static void clearDatabase() {
+        System.out.println("===========================================================\n");
         System.out.println("Avvio pulizia Database...");
         long t1 = System.currentTimeMillis();
 
         try {
-            String dbFolder = "graphDB";
+            String dbFolder = Database.getName();
             File[] files = new File(dbFolder).listFiles(f -> !f.isDirectory());
             if (files == null) return;
 
             for (File file : files) {
+                if (file.getName().equals("rewins")) continue;
+                if (file.getName().equals("users.json")) continue;
+                if (file.getName().equals("posts.json")) continue;
+
                 List<String> l = Files.readAllLines(file.toPath());
                 String s = l.stream()
                         .filter(p -> !p.startsWith("#"))
                         .map(f -> f.replace("#", ""))
+                        .map(f -> f.endsWith(";") ? f.substring(0, f.lastIndexOf(';')) : f)
                         .collect(Collectors.joining("\n"));
 
                 if (!s.endsWith("\n") && !s.isBlank()) s = s.concat("\n");
@@ -177,10 +174,25 @@ public class DatabaseMain {
             long t2 = System.currentTimeMillis();
             System.out.println("Pulizia completata!");
             System.out.println("Tempo: " + (t2 - t1) + "ms");
+            System.out.println("\n===========================================================\n");
         }
     }
 
     public static Database getDatabase() {
         return database;
+    }
+
+    public synchronized static void safeClose() {
+        if (!running) return;
+
+        running = false;
+        Runtime.getRuntime().removeShutdownHook(closingThread);
+        closingThread.start();
+        try {
+            closingThread.join();
+            System.exit(0);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

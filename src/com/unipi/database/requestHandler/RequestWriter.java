@@ -6,7 +6,7 @@ import com.unipi.common.SimplePost;
 import com.unipi.database.DBResponse;
 import com.unipi.database.Database;
 import com.unipi.database.DatabaseMain;
-import com.unipi.database.EntriesStorage;
+import com.unipi.database.utility.EntriesStorage;
 import com.unipi.database.graph.graphNodes.GraphNode;
 import com.unipi.database.graph.graphNodes.GroupNode;
 import com.unipi.database.graph.graphNodes.Node;
@@ -14,7 +14,7 @@ import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Like;
 import com.unipi.database.tables.Post;
 import com.unipi.database.utility.ThreadWorker;
-import com.unipi.utility.channelsio.ChannelSender;
+import com.unipi.utility.channelsio.ChannelLineSender;
 import com.unipi.utility.channelsio.PipedSelector;
 
 import java.io.IOException;
@@ -26,7 +26,7 @@ public class RequestWriter implements Runnable {
     private SocketChannel socket;
     private PipedSelector selector;
     private Packet packet;
-    private ChannelSender out;
+    private ChannelLineSender out;
     private Database database;
 
     public RequestWriter(SocketChannel socket, PipedSelector selector, Packet p) {

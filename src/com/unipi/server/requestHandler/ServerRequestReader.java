@@ -6,15 +6,14 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.unipi.common.*;
 import com.unipi.database.DBResponse;
-import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Like;
 import com.unipi.server.ParamsValidator;
 import com.unipi.server.RMI.FollowersDatabase;
 import com.unipi.server.ServerMain;
 import com.unipi.server.ServerProperties;
 import com.unipi.server.ServerThreadWorker;
-import com.unipi.utility.channelsio.ChannelSender;
-import com.unipi.utility.channelsio.ConcurrentChannelReceiver;
+import com.unipi.utility.channelsio.ChannelLineSender;
+import com.unipi.utility.channelsio.ConcurrentChannelLineReceiver;
 import com.unipi.utility.channelsio.PipedSelector;
 
 import java.io.IOException;
@@ -29,8 +28,8 @@ public class ServerRequestReader implements Callable<String> {
     private SocketChannel socket;
     private PipedSelector selector;
     private Gson gson;
-    private ConcurrentChannelReceiver in;
-    private ChannelSender out;
+    private ConcurrentChannelLineReceiver in;
+    private ChannelLineSender out;
     private SocketChannel db_connection;
     private WSRequest request;
     private WSResponse response;
@@ -81,6 +80,8 @@ public class ServerRequestReader implements Callable<String> {
             Console.log(message);
             try {
                 WSRequest request = gson.fromJson(message, WSRequest.class);
+                if(request.getOp() == null) return "NULL REQUEST";
+
                 s = processRequest(request);
             } catch (JsonSyntaxException e) {
                 e.printStackTrace();
@@ -101,7 +102,7 @@ public class ServerRequestReader implements Callable<String> {
                 return performRegistration(request);
             }
 
-            case FIND_USER -> {
+            case LOGIN -> {
                 return performLogin(request);
             }
 

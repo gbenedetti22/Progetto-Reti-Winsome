@@ -21,7 +21,7 @@ public class WSRequest implements Serializable {
 
     public enum WS_OPERATIONS {
         CREATE_USER,
-        FIND_USER,
+        LOGIN,
         GET_FRIENDS_BY_TAG,
         GET_FOLLOWERS,
         GET_FOLLOWING,

@@ -133,7 +133,7 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
 
     }
 
-    private static void debugTask(Future<?> task) {
+    public static void debugTask(Future<?> task) {
         new Thread(() -> {
             try {
                 task.get();

@@ -22,11 +22,6 @@ public class SimplePost implements Comparable<SimplePost>, Serializable {
         this.date = date;
         this.rewin = null;
 
-        int TITLE_MAX_LENGHT = 15;
-        if (title.length() > TITLE_MAX_LENGHT) {
-            this.title = title.substring(0, TITLE_MAX_LENGHT).concat("...");
-        }
-
         int CONTENT_MAX_LENGHT = 100;
         if (title.length() > CONTENT_MAX_LENGHT) {
             this.title = title.substring(0, CONTENT_MAX_LENGHT).concat("...");

@@ -6,6 +6,7 @@ import com.unipi.client.UI.components.TextInputField;
 import com.unipi.client.mainFrame.ACTIONS;
 import com.unipi.client.mainFrame.ActionPipe;
 import com.unipi.client.mainFrame.ClientProperties;
+import com.unipi.client.mainFrame.MainFrame;
 import com.unipi.server.RMI.RegistrationService;
 import com.unipi.server.requestHandler.WSRequest;
 import com.unipi.server.requestHandler.WSResponse;
@@ -17,6 +18,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 
 import static com.unipi.client.mainFrame.ClientProperties.NAMES.RMI_ADDRESS;
@@ -108,6 +110,10 @@ public class RegisterPage extends JPanel {
             String password1 = passwordField.getPlainTextPassword();
             String password2 = repeatPassword.getPlainTextPassword();
 
+            if(username.contains(" ")) {
+                MainFrame.showErrorMessage("Username non valido. Non può contenere spazi.");
+                return;
+            }
 
             if (password1.isEmpty()) {
                 JOptionPane.showMessageDialog(null, "La password non può essere vuota", "Errore",
@@ -124,14 +130,21 @@ public class RegisterPage extends JPanel {
             ArrayList<String> tagsList = new ArrayList<>(5);
             for (TextInputField input : tags) {
                 String tag = input.getText();
-                if (!tag.isEmpty()) {
+                if (!tag.isBlank()) {
                     tagsList.add(tag);
                 }
             }
             if (tagsList.isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Devi inserire al più un tag", "Errore",
-                        JOptionPane.ERROR_MESSAGE);
+                MainFrame.showErrorMessage("Devi inserire al più un tag");
                 return;
+            }
+
+            tagsList.sort(Comparator.naturalOrder());
+            for (int i = 0; i < tagsList.size() - 1; i++) {
+                if (tagsList.get(i).equals(tagsList.get(i + 1))) {
+                    MainFrame.showErrorMessage("Tag uguali non ammessi");
+                    return;
+                }
             }
 
             WSRequest request = new WSRequest(WSRequest.WS_OPERATIONS.CREATE_USER, username, password1, tagsList);

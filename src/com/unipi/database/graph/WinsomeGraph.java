@@ -15,12 +15,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class WinsomeGraph {
     private MutableGraph<Node> graph;
     private ReentrantReadWriteLock rwlock;
-    private GroupNode newEntryGroup;
 
     public WinsomeGraph(Database db) {
         graph = GraphBuilder.undirected().allowsSelfLoops(false).build();
         rwlock = new ReentrantReadWriteLock();
-        newEntryGroup = new GroupNode("NEW ENTRY", null);
 
         File dbFolder = new File(Database.getName());
         if (!dbFolder.exists()) {
@@ -41,15 +39,6 @@ public class WinsomeGraph {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    @SuppressWarnings("UnusedReturnValue")
-    public boolean addNode(Node n) {
-        rwlock.writeLock().lock();
-        boolean inserted = graph.addNode(n);
-        rwlock.writeLock().unlock();
-
-        return inserted;
     }
 
     @SuppressWarnings("UnusedReturnValue")
@@ -78,22 +67,6 @@ public class WinsomeGraph {
         return deleted;
     }
 
-    public Set<Node> nodes() {
-        rwlock.readLock().lock();
-        Set<Node> set = graph.nodes();
-        rwlock.readLock().unlock();
-
-        return set;
-    }
-
-    public Set<EndpointPair<Node>> edges() {
-        rwlock.readLock().lock();
-        Set<EndpointPair<Node>> set = graph.edges();
-        rwlock.readLock().unlock();
-
-        return set;
-    }
-
     @SuppressWarnings("UnusedReturnValue")
     public boolean removeEdge(Node n1, Node n2) {
         rwlock.writeLock().lock();
@@ -103,11 +76,12 @@ public class WinsomeGraph {
         return deleted;
     }
 
-    public void clearEdges(Node n) {
-        rwlock.writeLock().lock();
-        graph.removeNode(n);
-        graph.addNode(n);
-        rwlock.writeLock().unlock();
+    public boolean hasEdgeConnecting(Node n1, Node n2) {
+        rwlock.readLock().lock();
+        boolean ok = graph.hasEdgeConnecting(n1, n2);
+        rwlock.readLock().unlock();
+
+        return ok;
     }
 
     public MutableGraph<Node> getGraph() {

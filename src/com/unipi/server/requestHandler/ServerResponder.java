@@ -1,9 +1,8 @@
 package com.unipi.server.requestHandler;
 
 import com.google.gson.Gson;
-import com.unipi.common.Console;
 import com.unipi.server.ServerThreadWorker;
-import com.unipi.utility.channelsio.ChannelSender;
+import com.unipi.utility.channelsio.ChannelLineSender;
 import com.unipi.utility.channelsio.PipedSelector;
 
 import java.io.IOException;
@@ -26,7 +25,7 @@ public class ServerResponder implements Runnable {
     @Override
     public void run() {
         ServerThreadWorker worker = (ServerThreadWorker) Thread.currentThread();
-        ChannelSender out = worker.getSender();
+        ChannelLineSender out = worker.getSender();
         out.setChannel(socket);
 
         String responseJson = gson.toJson(response);

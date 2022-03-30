@@ -1,5 +1,8 @@
 package com.unipi.server;
 
+import com.unipi.client.mainFrame.MainFrame;
+
+import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -14,8 +17,12 @@ public class ParamsValidator {
             return "Parametri passati non validi";
         }
 
-        if (!(params[0] instanceof String)) {
+        if (!(params[0] instanceof String username)) {
             return "Username non valido";
+        }
+
+        if(username.contains(" ")) {
+            return "Username non valido. Carattere spazio non ammesso";
         }
 
         if (!(params[1] instanceof String pass)) {
@@ -40,6 +47,15 @@ public class ParamsValidator {
 
             if(specialCharacter.matcher(s).find() || s.contains(" ")) {
                 return "I tags non possono contenere caratteri speciali o spazi bianchi";
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        List<String> tagsList = (List<String>) list;
+        tagsList.sort(Comparator.naturalOrder());
+        for (int i = 0; i < tagsList.size() - 1; i++) {
+            if (tagsList.get(i).equals(tagsList.get(i + 1))) {
+                return "Tag duplicati non sono consentiti";
             }
         }
 

@@ -20,7 +20,6 @@ public class MainFrame extends JFrame {
         try {
             mainThread = new MainFrameThread(this);
         } catch (IOException | NotBoundException e) {
-            e.printStackTrace();
             JOptionPane.showMessageDialog(null, "Impossibile collegarsi al Server", "Errore", JOptionPane.ERROR_MESSAGE);
             System.exit(0);
         }

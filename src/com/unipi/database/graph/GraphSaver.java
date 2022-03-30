@@ -2,7 +2,6 @@ package com.unipi.database.graph;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.unipi.common.Console;
 import com.unipi.database.Database;
 import com.unipi.database.graph.graphNodes.GraphNode;
 import com.unipi.database.graph.graphNodes.Node;
@@ -17,8 +16,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class GraphSaver {
     private Gson gson;
@@ -129,13 +126,13 @@ public class GraphSaver {
         if (l == null) return;
 
         //Se il like già esiste, allora aggiorno solo il json
-        if(Files.exists(Path.of(jsonPathOf(l.getId().toString())))) {
+        if (Files.exists(Path.of(jsonPathOf(l.getId().toString())))) {
             try {
                 String s = gson.toJson(l);
                 BufferedWriter out = new BufferedWriter(new PrintWriter(jsonPathOf(l.getId().toString())));
                 out.write(s);
                 out.close();
-            }catch (IOException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             return;
@@ -159,7 +156,7 @@ public class GraphSaver {
     }
 
     public void saveRewin(User u, UUID idPost) {
-        String rewinFile = Database.getName() + File.separator + "rewins";
+        String rewinFile = rewinsPath();
 
         try {
             BufferedWriter out = new BufferedWriter(new FileWriter(rewinFile, true));
@@ -175,22 +172,43 @@ public class GraphSaver {
             if (!Files.exists(Paths.get(rewinsPath()))) return;
 
             RandomAccessFile file = new RandomAccessFile(rewinsPath(), "rw");
-            String record = String.format("%s;%s", username, idPost.toString());
+            long offset = 0, lineLenght;
+            boolean found = false;
+
             String line;
+            String record = String.format("%s;%s", username, idPost.toString());
             while ((line = file.readLine()) != null) {
                 if (line.equals(record)) {
-                    file.seek(Math.max(file.getFilePointer() - line.length() - 1, 0));
-                    file.writeBytes("#".repeat(line.length()));
-                    file.close();
-                    return;
+                    found = true;
+                    break;
                 }
+                offset = file.getFilePointer();
             }
 
+            lineLenght = file.getFilePointer() - offset;
+
+            if (!found) {
+                file.close();
+                return;
+            }
+
+            int read;
+            byte[] buffer = new byte[512];
+            // in pratica leggo quello che viene dopo la riga da cancellare,
+            // poi mi posizione all inizio della riga e sovrascrivo tutto
+            while ((read = file.read(buffer)) > -1) {
+                file.seek(file.getFilePointer() - read - lineLenght);
+                file.write(buffer, 0, read);
+                file.seek(file.getFilePointer() + lineLenght);
+            }
+
+            file.setLength(file.length() - lineLenght);
+            file.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
+
 
     public void removeEntry(String username, Like l) {
         if (l == null || l.getLinePosition() == -1) return;
@@ -225,9 +243,11 @@ public class GraphSaver {
     private String pathOf(String username) {
         return Database.getName() + File.separator + username;
     }
+
     private String jsonPathOf(String filename) {
         return Database.getName() + File.separator + "jsons" + File.separator + filename + ".json";
     }
+
     private String rewinsPath() {
         return Database.getName() + File.separator + "rewins";
     }

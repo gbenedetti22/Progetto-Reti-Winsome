@@ -5,6 +5,7 @@ import java.io.Serializable;
 public class DBResponse implements Serializable {
     private String code;
     private Object message;
+    public static final String OK = "200";
 
     public DBResponse(String code, Object message) {
         this.code = code;

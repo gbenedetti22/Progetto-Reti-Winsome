@@ -249,7 +249,7 @@ public class MainFrameThread extends Thread {
         String json = response.getBody();
 
         WrapperPost post = gson.fromJson(json, WrapperPost.class);
-        PostPage page = Pages.newPostPage(id, post.TITLE, post.CONTENT);
+        PostPage page = Pages.newPostPage(id, banner.getAuthor(), post.TITLE, post.CONTENT);
         page.setLikes((int) post.LIKES);
         page.setDislikes((int) post.DISLIKES);
 
@@ -277,7 +277,7 @@ public class MainFrameThread extends Thread {
         String json = response.getBody();
 
         WrapperPost post = gson.fromJson(json, WrapperPost.class);
-        PostPage page = Pages.newPostPage(id, post.TITLE, post.CONTENT);
+        PostPage page = Pages.newPostPage(id, banner.getAuthor(), post.TITLE, post.CONTENT);
         page.setLikes((int) post.LIKES);
         page.setDislikes((int) post.DISLIKES);
         for (Map<String, String> c : post.COMMENTS) {
@@ -553,7 +553,7 @@ public class MainFrameThread extends Thread {
             return false;
         }
 
-        WSRequest loginRequest = new WSRequest(WSRequest.WS_OPERATIONS.FIND_USER, username, password);
+        WSRequest loginRequest = new WSRequest(WSRequest.WS_OPERATIONS.LOGIN, username, password);
         serviceManager.submitRequest(loginRequest);
         WSResponse response = serviceManager.getResponse();
         if (response.code() != WSResponse.CODES.OK) {

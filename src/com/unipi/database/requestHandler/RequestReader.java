@@ -7,13 +7,13 @@ import com.unipi.common.Console;
 import com.unipi.common.SimpleComment;
 import com.unipi.database.Database;
 import com.unipi.database.DatabaseMain;
-import com.unipi.database.EntriesStorage;
+import com.unipi.database.utility.EntriesStorage;
 import com.unipi.database.graph.graphNodes.Node;
 import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Post;
 import com.unipi.database.tables.User;
 import com.unipi.database.utility.ThreadWorker;
-import com.unipi.utility.channelsio.ConcurrentChannelReceiver;
+import com.unipi.utility.channelsio.ConcurrentChannelLineReceiver;
 import com.unipi.utility.channelsio.PipedSelector;
 
 import java.io.IOException;
@@ -46,7 +46,7 @@ public class RequestReader implements Runnable {
     @Override
     public void run() {
         ThreadWorker worker = (ThreadWorker) Thread.currentThread();
-        ConcurrentChannelReceiver in = worker.getReceiver();
+        ConcurrentChannelLineReceiver in = worker.getReceiver();
 
         in.setChannel(socket);
 
@@ -96,7 +96,7 @@ public class RequestReader implements Runnable {
             case "PULL NEW ENTRIES" -> getLatestEntries();
             case "UPDATE" -> updateUser(record[1]);
             case "GET TRANSACTIONS" -> getTransactions(record[1]);
-            case "STOP", "QUIT", "EXIT", "CLOSE" -> DatabaseMain.stop();
+            case "STOP", "QUIT", "EXIT", "CLOSE" -> DatabaseMain.safeClose();
             default -> {
             }
         }
@@ -334,8 +334,8 @@ public class RequestReader implements Runnable {
         response = new Packet(Packet.FUNCTION.PULL_ENTRIES, list);
     }
 
-    //UPDATE: user value date
-    //UPDATE: [a, b, c ...] value date
+    //UPDATE: user coins date idPost
+    //UPDATE: [a, b, c ...] coins date
     private void updateUser(String s) {
         if (s.startsWith("[")) {
             String array = s.substring(0, s.indexOf(']') + 1);
@@ -375,7 +375,13 @@ public class RequestReader implements Runnable {
         String[] data = s.split(" ", 3);
         String user = data[0];
         String coins = data[1];
-        String date = data[2];
+        String dateAndIdPost = data[2];
+        int index = dateAndIdPost.lastIndexOf(' ');
+        String date = dateAndIdPost.substring(0, index);
+        UUID idPost = UUID.fromString(dateAndIdPost.substring(index + 1));
+
+        Post p = database.getPost(idPost);
+        p.incrementInteractions();
 
         try {
             Database.getDateFormat().getSimpleDateFormat().parse(date);

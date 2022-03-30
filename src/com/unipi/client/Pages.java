@@ -10,8 +10,8 @@ public class Pages {
     public static final FollowersPage FOLLOW_PAGE = new FollowersPage();
     public static final DiscoverPage DISCOVER_PAGE = new DiscoverPage();
 
-    public static PostPage newPostPage(String id, String title, String content) {
-        return new PostPage(id, title, content);
+    public static PostPage newPostPage(String id, String author, String title, String content) {
+        return new PostPage(id, author, title, content);
     }
 
     public static void resetPages() {

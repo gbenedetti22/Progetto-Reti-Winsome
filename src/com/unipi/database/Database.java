@@ -14,6 +14,8 @@ import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Like;
 import com.unipi.database.tables.Post;
 import com.unipi.database.tables.User;
+import com.unipi.database.utility.EntriesStorage;
+import com.unipi.database.utility.PriorityAsyncExecutor;
 import com.unipi.utility.StandardPriority;
 
 import java.io.*;
@@ -53,13 +55,6 @@ public class Database implements WinsomeDatabase, Closeable {
 
         graph = new WinsomeGraph(this);
         graphSaver = new GraphSaver();
-        new Thread(() -> {
-            System.out.println("Atteso input tastiera...");
-            Scanner scanner = new Scanner(System.in);
-            scanner.nextLine();
-            saver.interrupt();
-            scanner.close();
-        }).start();
     }
 
     public static DatabaseDate getDateFormat() {
@@ -71,6 +66,12 @@ public class Database implements WinsomeDatabase, Closeable {
     }
 
     public void startSaving(String delay) {
+        if (!delay.matches("^[0-9]+[a-zA-Z]$")) {
+            System.err.println("Formato delay non valido");
+            System.err.println("Verrà usato il valore di default: ");
+            delay = "5m";
+        }
+
         this.saver = new PriorityAsyncExecutor(delay);
         saver.start();
 
@@ -448,22 +449,27 @@ public class Database implements WinsomeDatabase, Closeable {
 
     @Override
     public Comment appendComment(UUID idPost, String author, String content) throws UnsupportedOperationException {
-        Post p = tablePosts.get(idPost);
         User u = tableUsers.get(author);
+        Post p = tablePosts.get(idPost);
 
 //   Codice per controllare se il commento è ammissibile oppure no.
 //   Il commento non è ammissibile se sto cercando di metterlo ad un Rewin che nessun mio following ha "rewinnato".
-//   Supponiamo che A voglia mettere il commento ad un Post "rewinnato" da un utente B:
-//   se nessuno dei follow di A segue B, vuol dire che nessun utente ha "rewinnato" quel post.
+
         if (p != null && u != null) {
+
             boolean ok = false;
-            for (String f1 : u.getFollowing()) {
-                User followOfF1 = tableUsers.get(f1);
-                if(followOfF1.getFollowing().contains(p.getAuthor())){
-                    ok = true;
-                    break;
+            if(u.getFollowing().contains(p.getAuthor())) {
+                ok = true;
+            } else {
+                for (String f1 : u.getFollowing()) {
+                    User followOfF1 = tableUsers.get(f1);
+                    if(graph.hasEdgeConnecting(followOfF1.getPostsGroupNode(), new GraphNode<>(idPost))) {
+                        ok = true;
+                        break;
+                    }
                 }
             }
+
             if(!ok) {
                 throw new UnsupportedOperationException();
             }
@@ -500,14 +506,17 @@ public class Database implements WinsomeDatabase, Closeable {
 
 //   Codice per controllare se il like è ammissibile oppure no.
 //   Il like non è ammissibile se sto cercando di metterlo ad un Rewin che nessun mio following ha "rewinnato".
-//   Supponiamo che A voglia mettere il like ad un Post "rewinnato" da un utente B:
-//   se nessuno dei follow di A segue B, vuol dire che nessun utente ha "rewinnato" quel post.
+
         boolean ok = false;
-        for (String f1 : u.getFollowing()) {
-            User followOfF1 = tableUsers.get(f1);
-            if(followOfF1.getFollowing().contains(p.getAuthor())){
-                ok = true;
-                break;
+        if(u.getFollowing().contains(p.getAuthor())) {
+            ok = true;
+        } else {
+            for (String f1 : u.getFollowing()) {
+                User followOfF1 = tableUsers.get(f1);
+                if(graph.hasEdgeConnecting(followOfF1.getPostsGroupNode(), new GraphNode<>(idPost))) {
+                    ok = true;
+                    break;
+                }
             }
         }
         if(!ok) {
@@ -524,6 +533,12 @@ public class Database implements WinsomeDatabase, Closeable {
             if (n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
                 if (l.getUsername().equals(username)) {
                     if (l.getType() != type) {
+                        if(l.getType() == Like.type.LIKE) {
+                            entries.changeLikeToDislike(l);
+                        }else {
+                            entries.chageDislikeToLike(l);
+                        }
+
                         l.setType(type);
                         saver.asyncExecute(() -> graphSaver.saveLike(username, l), StandardPriority.NORMAL);
                         return "0"; //like cambiato
@@ -550,6 +565,7 @@ public class Database implements WinsomeDatabase, Closeable {
         graphSaver.saveLike(post.getAuthor(), like);
         return "200";
     }
+
 
     //username vuole cancellare un post con id=idPost
     @Override
@@ -578,11 +594,11 @@ public class Database implements WinsomeDatabase, Closeable {
                 graph.removeNode(node);
             }
 
+            entries.remove(p.getId());
             saver.asyncExecute(() -> graphSaver.removePost(p, commentsSet, likesSet), StandardPriority.LOW);
             graph.removeNode(commentsGroup);
             graph.removeNode(likesGroup);
             graph.removeNode(new GraphNode<>(p.getId()));
-            savePosts();
             return "200";
         }
 
@@ -593,15 +609,22 @@ public class Database implements WinsomeDatabase, Closeable {
     public ArrayList<EntriesStorage.Entry> pullNewEntries() {
         ArrayList<EntriesStorage.Entry> entries = this.entries.pull();
         for (EntriesStorage.Entry e : entries) {
-            for (Comment c : e.COMMENTS) {
-                saver.asyncExecute(() -> graphSaver.removeEntry(tablePosts.get(c.getIdPost()).getAuthor(), c), StandardPriority.LOW);
+
+            //Questi 2 for annidati, in realtà, sono come un for che cicla su tutti i commenti nuovi
+            for (ArrayList<Comment> comments : e.COMMENTS.values()) {
+                for (Comment c : comments) {
+                    saver.asyncExecute(() -> graphSaver.removeEntry(tablePosts.get(c.getIdPost()).getAuthor(), c), StandardPriority.LOW);
+                }
             }
+
             for (Like l : e.LIKES) {
                 saver.asyncExecute(() -> graphSaver.removeEntry(tablePosts.get(l.getIdPost()).getAuthor(), l), StandardPriority.LOW);
             }
 
-            Post p = getPost(e.HEADER.getIdPost());
-            p.incrementInteractions();
+            for (Like l : e.DISLIKES) {
+                saver.asyncExecute(() -> graphSaver.removeEntry(tablePosts.get(l.getIdPost()).getAuthor(), l), StandardPriority.LOW);
+            }
+
         }
 
         return entries;

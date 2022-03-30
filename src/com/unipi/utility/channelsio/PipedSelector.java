@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.ConcurrentModificationException;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -21,6 +22,56 @@ import java.util.function.Consumer;
  * la chiave viene inserita dentro una queue e poi si procede con la scrittura di 1 byte su una {@link Pipe} registrata all interno del selettore.<br>
  * Quest ultima operazione farà svegliare il Main Thread dalla {@link Selector#select()} e solo allora la chiave verrà re-inserita.<br>
  * Il byte sulla Pipe scritto viene consumato.
+ *
+ * Esempio d uso tipico:
+ * <pre>
+ * {@code
+ *     public static void main(String[] args) {
+ *         try {
+ *             ServerSocketChannel server = ServerSocketChannel.open();
+ *             server.socket().bind(new InetSocketAddress(port));
+ *
+ *             selector.insert(server, SelectionKey.OP_ACCEPT);
+ *
+ *             while (running) {
+ *                 selector.selectKey(Main::readSelectedKey);
+ *             }
+ *
+ *         } catch (IOException e) {
+ *             e.printStackTrace();
+ *         }
+ *     }
+ *
+ *     private static void readSelectedKey(SelectionKey key) {
+ *         try {
+ *             if (key.isAcceptable()) {
+ *                 ServerSocketChannel server = (ServerSocketChannel) key.channel();
+ *                 SocketChannel client = server.accept();
+ *
+ *                 selector.insert(client, SelectionKey.OP_READ);
+ *             } else if (key.isReadable()) {
+ *                 key.cancel(); // <- molto importante se si vuole usare un threadPool
+ *
+ *                 SocketChannel client = (SocketChannel) key.channel();
+ *                 RequestReader reader = new RequestReader(client);
+ *
+ *                 threadPool.submit(reader);
+ *             } else if (key.isWritable()) {
+ *                 key.cancel();
+ *
+ *                 SocketChannel client = (SocketChannel) key.channel();
+ *                 RequestWriter writer = new RequestWriter(client);
+ *
+ *                 threadPool.submit(writer);
+ *             }
+ *         } catch (IOException e) {
+ *             e.printStackTrace();
+ *         }
+ *     }
+ * }
+ * </pre>
+ *
+ * Per rimettere il Socket dentro il Selector, usare {@link PipedSelector#enqueue(SelectableChannel, int)}
  */
 public class PipedSelector implements Closeable {
     private Selector selector;
@@ -29,6 +80,11 @@ public class PipedSelector implements Closeable {
     private ByteBuffer inBuffer;
     private ByteBuffer outBuffer;
     private ConcurrentLinkedQueue<KeyEntry> queue;
+
+    /**
+     * Costruttore che permette la creazione di un nuovo PipedSelector. <br>
+     * In fase di creazione, la Pipe viene aperta sia in scrittura che in lettura
+     */
     public PipedSelector() {
         try {
             selector = Selector.open();
@@ -46,6 +102,7 @@ public class PipedSelector implements Closeable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
     /**
