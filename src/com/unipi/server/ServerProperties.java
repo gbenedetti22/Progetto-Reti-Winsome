@@ -72,13 +72,14 @@ public class ServerProperties {
                 case SOCK_TIMEOUT, PRINT_LOG -> map.put(v, 0);
                 case REWARD_TIME_DELAY -> map.put(v, "1d");
                 case AUTHOR_PERCENTAGE -> map.put(v, 70);
+                case CLOSE_DB -> map.put(v,"true");
             }
         }
     }
 
     private static boolean isNumber(String value) {
         switch (value) {
-            case "SERVER_ADDRESS", "MULTICAST_ADDRESS", "RMI_ADDRESS", "REWARD_TIME_DELAY", "DB_ADDRESS" -> {
+            case "SERVER_ADDRESS", "MULTICAST_ADDRESS", "RMI_ADDRESS", "REWARD_TIME_DELAY", "DB_ADDRESS", "CLOSE_DB" -> {
                 return false;
             }
 
@@ -102,6 +103,6 @@ public class ServerProperties {
         SOCK_TIMEOUT,
         REWARD_TIME_DELAY,
         AUTHOR_PERCENTAGE,
-        PRINT_LOG
+        CLOSE_DB, PRINT_LOG
     }
 }

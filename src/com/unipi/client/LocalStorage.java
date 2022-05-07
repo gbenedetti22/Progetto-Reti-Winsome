@@ -1,5 +1,6 @@
 package com.unipi.client;
 
+import com.unipi.client.UI.pages.FollowersPage;
 import com.unipi.common.Console;
 import com.unipi.server.RMI.FollowersDatabase;
 
@@ -25,12 +26,23 @@ public class LocalStorage extends UnicastRemoteObject implements FollowersDataba
     public void addFollower(String username) throws RemoteException {
         followers.add(username);
         System.out.println("Follower: " + username + " aggiuto con successo!");
+
+        FollowersPage page = Pages.FOLLOW_PAGE;
+        if(following.contains(username)) {
+            FollowersPage.PageBanner banner = page.newBanner(username, FollowersPage.Type.FOLLOWING);
+            page.addLeft(banner);
+            return;
+        }
+
+        page.appendBanner(username, FollowersPage.Type.FOLLOWER);
     }
 
     @Override
     public void removeFollower(String username) throws RemoteException {
         followers.remove(username);
         System.out.println("Follower: " + username + " rimosso con successo!");
+
+        Pages.FOLLOW_PAGE.removeFromLeft(username);
     }
 
     public ArrayList<String> getFollowing() {
@@ -49,6 +61,20 @@ public class LocalStorage extends UnicastRemoteObject implements FollowersDataba
     public void setFollowers(Set<String> followers) throws RemoteException {
         this.followers.addAll(followers);
         Console.log("Followers settati", this.followers);
+        FollowersPage page = Pages.FOLLOW_PAGE;
+        page.clearLeft();
+
+        for (String follower : this.followers) {
+            //se già sto seguendo questo utente.. -> metto unfollow
+            if (this.following.contains(follower)) {
+                FollowersPage.PageBanner banner = page.newBanner(follower, FollowersPage.Type.FOLLOWING);
+                page.addLeft(banner);
+                continue;
+            }
+
+            //..altrimenti metto possibilità di follow
+            page.appendBanner(follower, FollowersPage.Type.FOLLOWER);
+        }
     }
 
     public String getCurrentUsername() {

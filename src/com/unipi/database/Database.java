@@ -291,14 +291,14 @@ public class Database implements WinsomeDatabase, Closeable {
 
     public Set<SimpleComment> getCommentsFromDate(UUID idPost, String date) throws ParseException {
         Post p = tablePosts.get(idPost);
-        if(p != null) {
+        if (p != null) {
             GroupNode commentsGroupNode = p.getCommentsGroupNode();
             Set<Node> comments = graph.adjacentNodes(commentsGroupNode);
 
             HashSet<SimpleComment> set = new HashSet<>();
-            if(date.equals("0")) {
+            if (date.equals("0")) {
                 for (Node n : comments) {
-                    if(n instanceof GraphNode<?> g && g.getValue() instanceof Comment c) {
+                    if (n instanceof GraphNode<?> g && g.getValue() instanceof Comment c) {
                         set.add(c.toSimpleComment());
                     }
                 }
@@ -309,8 +309,8 @@ public class Database implements WinsomeDatabase, Closeable {
             SimpleDateFormat format = Database.getDateFormat().getSimpleDateFormat();
             Date d = format.parse(date);
             for (Node n : comments) {
-                if(n instanceof GraphNode<?> g && g.getValue() instanceof Comment c) {
-                    if(format.parse(c.getDate()).after(d)) {
+                if (n instanceof GraphNode<?> g && g.getValue() instanceof Comment c) {
+                    if (format.parse(c.getDate()).after(d)) {
                         set.add(c.toSimpleComment());
                     }
                 }
@@ -357,6 +357,9 @@ public class Database implements WinsomeDatabase, Closeable {
         HashMap<String, Set<Node>> result = new HashMap<>();
         SimpleDateFormat format = Database.getDateFormat().getSimpleDateFormat();
 
+        /*
+            key=username || value=date
+         */
         for (Map.Entry<String, String> entry : dateMap.entrySet()) {
             String follow = entry.getKey();
             String date = entry.getValue();
@@ -377,23 +380,16 @@ public class Database implements WinsomeDatabase, Closeable {
                 }catch (ParseException e) {
                     return null;
                 }
-                //se la amico ha postato qualcosa dopo la data d
-                if (friend.getDateOfLastPost().after(d)) {
-                    Set<Node> nodes = graph.adjacentNodes(friend.getPostsGroupNode());
-                    Set<Node> postsAfterDate = nodes.stream()
-//                            .parallel()
-                            .filter(node -> {
-                                if (node instanceof GraphNode<?> g && g.getValue() instanceof UUID id) {
-                                    Post p = tablePosts.get(id);
-                                    return p.date().toDate().after(d);
-                                }
 
-                                return false;
-                            }).collect(Collectors.toSet());
-
-                    result.put(follow, postsAfterDate);
+                for (Node n : graph.adjacentNodes(friend.getPostsGroupNode())) {
+                    if (n instanceof GraphNode<?> g && g.getValue() instanceof UUID id) {
+                        Post p = tablePosts.get(id);
+                        if(!p.getAuthor().equals(follow) || p.date().toDate().after(d)) {
+                            result.putIfAbsent(follow, new HashSet<>());
+                            result.get(follow).add(n);
+                        }
+                    }
                 }
-
 
             } catch (NullPointerException e) {
                 e.printStackTrace();
@@ -402,6 +398,7 @@ public class Database implements WinsomeDatabase, Closeable {
 
         return result;
     }
+
 
     @Override
     public String rewinFriendsPost(String username, UUID idPost) {
@@ -458,19 +455,19 @@ public class Database implements WinsomeDatabase, Closeable {
         if (p != null && u != null) {
 
             boolean ok = false;
-            if(u.getFollowing().contains(p.getAuthor())) {
+            if (u.getFollowing().contains(p.getAuthor())) {
                 ok = true;
             } else {
                 for (String f1 : u.getFollowing()) {
                     User followOfF1 = tableUsers.get(f1);
-                    if(graph.hasEdgeConnecting(followOfF1.getPostsGroupNode(), new GraphNode<>(idPost))) {
+                    if (graph.hasEdgeConnecting(followOfF1.getPostsGroupNode(), new GraphNode<>(idPost))) {
                         ok = true;
                         break;
                     }
                 }
             }
 
-            if(!ok) {
+            if (!ok) {
                 throw new UnsupportedOperationException();
             }
 
@@ -508,18 +505,18 @@ public class Database implements WinsomeDatabase, Closeable {
 //   Il like non è ammissibile se sto cercando di metterlo ad un Rewin che nessun mio following ha "rewinnato".
 
         boolean ok = false;
-        if(u.getFollowing().contains(p.getAuthor())) {
+        if (u.getFollowing().contains(p.getAuthor())) {
             ok = true;
         } else {
             for (String f1 : u.getFollowing()) {
                 User followOfF1 = tableUsers.get(f1);
-                if(graph.hasEdgeConnecting(followOfF1.getPostsGroupNode(), new GraphNode<>(idPost))) {
+                if (graph.hasEdgeConnecting(followOfF1.getPostsGroupNode(), new GraphNode<>(idPost))) {
                     ok = true;
                     break;
                 }
             }
         }
-        if(!ok) {
+        if (!ok) {
             return "217";
         }
 
@@ -533,9 +530,9 @@ public class Database implements WinsomeDatabase, Closeable {
             if (n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
                 if (l.getUsername().equals(username)) {
                     if (l.getType() != type) {
-                        if(l.getType() == Like.type.LIKE) {
+                        if (l.getType() == Like.type.LIKE) {
                             entries.changeLikeToDislike(l);
-                        }else {
+                        } else {
                             entries.chageDislikeToLike(l);
                         }
 

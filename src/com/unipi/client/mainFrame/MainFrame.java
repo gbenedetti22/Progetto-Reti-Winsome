@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.rmi.NotBoundException;
 
 public class MainFrame extends JFrame {
-    private final JProgressBar progressBar;
     private MainFrameThread mainThread;
     private JPanel currentPage; //la prima pagina è il Login (vedi costruttore)
     private JPanel previousPage;
@@ -27,7 +26,6 @@ public class MainFrame extends JFrame {
         mainThread.start();
         currentPage = Pages.LOGIN_PAGE;
         previousPage = null;
-        progressBar = defaultProgressBar();
 
         setTitle("Winsome - Social Network");
         setMinimumSize(new Dimension(1280, 720));
@@ -53,29 +51,6 @@ public class MainFrame extends JFrame {
         JOptionPane.showMessageDialog(null, msg, "", JOptionPane.PLAIN_MESSAGE, icon);
     }
 
-    private JProgressBar defaultProgressBar() {
-        JProgressBar progressBar = new JProgressBar();
-        progressBar.setPreferredSize(new Dimension(progressBar.getWidth(), 40));
-        progressBar.setValue(0);
-        progressBar.setStringPainted(true);
-        progressBar.setForeground(new Color(0xabffd8));
-        progressBar.setBackground(new Color(0x828282));
-        progressBar.setUI(new BasicProgressBarUI() {
-            protected Color getSelectionBackground() {
-                return Color.WHITE;
-            }
-
-            protected Color getSelectionForeground() {
-                return new Color(0x707070);
-            }
-        });
-        progressBar.setFont(new Font("Arial", Font.PLAIN, 18));
-        return progressBar;
-    }
-
-    public JProgressBar getProgressBar() {
-        return progressBar;
-    }
 
     public synchronized void switchPage(JPanel page) {
         setMaximized(!(page instanceof LoginPage));
@@ -87,8 +62,6 @@ public class MainFrame extends JFrame {
 
         previousPage = currentPage;
         currentPage = page;
-        if (progressBarOn)
-            showProgressBar();
     }
 
     public synchronized JPanel getCurrentPage() {
@@ -103,20 +76,6 @@ public class MainFrame extends JFrame {
             setLocationRelativeTo(null);
             setExtendedState(getExtendedState() | JFrame.NORMAL);
         }
-    }
-
-    public void showProgressBar() {
-        add(progressBar, BorderLayout.PAGE_END);
-        revalidate();
-        repaint();
-        progressBarOn = true;
-    }
-
-    public void hideProgressBar() {
-        remove(progressBar);
-        revalidate();
-        repaint();
-        progressBarOn = false;
     }
 
     public JPanel getPreviousPage() {

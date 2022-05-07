@@ -37,6 +37,13 @@ public class HomePage extends JPanel {
         LinkLabel profileLabel = new LinkLabel("Il mio Account");
         profileLabel.setTextSize(16);
         profileLabel.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.PROFILE_ACTION, null));
+
+        LinkLabel updateLabel = new LinkLabel("Aggiorna");
+        updateLabel.setTextSize(16);
+        updateLabel.setMargin(new Insets(0, 0, 0, 17));
+        updateLabel.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.UPDATE_HOME, null));
+
+        topBarPanel.add(updateLabel);
         topBarPanel.add(profileLabel);
 
         if (!tags.isEmpty()) {

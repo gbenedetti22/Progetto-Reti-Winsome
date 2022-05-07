@@ -11,8 +11,8 @@ import java.util.HashMap;
 import java.util.Objects;
 
 public class FollowersPage extends JPanel {
-    private final Page left;
-    private final Page right;
+    private final Page left;    //followers
+    private final Page right;   //following
     private HashMap<String, PageBanner> leftComponents;
     private HashMap<String, PageBanner> rightComponents;
 
@@ -109,6 +109,16 @@ public class FollowersPage extends JPanel {
         left.clear();
         right.clear();
         leftComponents.clear();
+        rightComponents.clear();
+    }
+
+    public void clearLeft() {
+        left.clear();
+        leftComponents.clear();
+    }
+
+    public void clearRight() {
+        right.clear();
         rightComponents.clear();
     }
 

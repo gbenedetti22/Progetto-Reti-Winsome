@@ -72,6 +72,7 @@ public class RequestReader implements Runnable {
     private void processRequest(String request) {
         String[] record = request.split(":", 2);
         record = Arrays.stream(record).map(String::trim).toArray(String[]::new);
+        Console.log(request);
         switch (record[0]) {
             case "CREATE USER" -> createUser(record[1]);
             case "FIND USER" -> findUser(record[1]);

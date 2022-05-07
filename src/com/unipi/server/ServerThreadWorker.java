@@ -9,6 +9,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 
+import static com.unipi.server.ServerProperties.NAMES.CLOSE_DB;
+
 public class ServerThreadWorker extends ThreadWorker {
 
     private SocketChannel socket;
@@ -29,6 +31,11 @@ public class ServerThreadWorker extends ThreadWorker {
     @Override
     public void interrupt() {
         super.interrupt();
+        System.out.println("Interrotto Thread: " + getName());
+        String value = (String) ServerProperties.getValue(CLOSE_DB);
+        boolean close_db = Boolean.parseBoolean(value);
+        if(!close_db) return;
+
         try {
             ChannelLineSender out = new ChannelLineSender(socket);
             try {
@@ -40,7 +47,6 @@ public class ServerThreadWorker extends ThreadWorker {
             e.printStackTrace();
         }
 
-        System.out.println("Interrotto Thread: " + getName());
     }
 
     private static class ServerWorkerFactory implements ThreadFactory {

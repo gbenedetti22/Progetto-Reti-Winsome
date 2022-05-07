@@ -20,6 +20,6 @@ public enum ACTIONS {
     RETWEET_ACTION,
     SWITCH_PAGE,
     NONE,                   //non fare niente
-    GET_LATEST_COMMENTS, CLOSE_ACTION           //chiusura della ActionPipe
+    GET_LATEST_COMMENTS, UPDATE_HOME, CLOSE_ACTION           //chiusura della ActionPipe
 
 }

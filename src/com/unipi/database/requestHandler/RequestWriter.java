@@ -360,6 +360,7 @@ public class RequestWriter implements Runnable {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void getLatestPost() {
         if (packet.getMessage() instanceof String code) {
             try {
@@ -374,10 +375,11 @@ public class RequestWriter implements Runnable {
         if (!(packet.getMessage() instanceof Map<?, ?> m)) return;
 
         Map<String, Set<Node>> map = (Map<String, Set<Node>>) m;
-        HashMap<String, LinkedList<SimplePost>> unpackedMap = new HashMap<>(map.size());
+        HashMap<String, ArrayList<SimplePost>> unpackedMap = new HashMap<>(map.size());
+
         for (Map.Entry<String, Set<Node>> entry : map.entrySet()) {
             String friends = entry.getKey();
-            LinkedList<SimplePost> posts = new LinkedList<>();
+            ArrayList<SimplePost> posts = new ArrayList<>();
 
             for (Node n : entry.getValue()) {
                 if (n instanceof GraphNode<?> g && g.getValue() instanceof UUID id) {

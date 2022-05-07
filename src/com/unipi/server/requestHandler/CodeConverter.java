@@ -52,7 +52,7 @@ public class CodeConverter {
             }
 
             case "211" -> {
-                return "Non è consentito mettere like ad un proprio contenuto";
+                return "Non è consentito mettere like/dislike ad un proprio contenuto";
             }
 
             case "212" -> {

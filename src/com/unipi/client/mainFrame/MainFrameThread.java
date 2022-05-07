@@ -95,6 +95,7 @@ public class MainFrameThread extends Thread {
                             downloadLatestPosts();
                     }
                 }
+                case UPDATE_HOME -> downloadLatestPosts();
                 case PUBLISH_ACTION -> performPublishPost();
                 case PROFILE_ACTION -> performViewProfile();
                 case LOGOUT_ACTION -> performLogout();
@@ -115,14 +116,14 @@ public class MainFrameThread extends Thread {
     }
 
     private void performGetLatestComments() {
-        if(frame.getCurrentPage() instanceof PostPage page) {
+        if (frame.getCurrentPage() instanceof PostPage page) {
             CommentsPage commentsPage = (CommentsPage) ActionPipe.getParameter();
 
             String id = page.getId();
             String date;
             try {
                 date = commentsPage.getComments().first().getDate();
-            }catch (NoSuchElementException e) {
+            } catch (NoSuchElementException e) {
                 date = "0";
             }
 
@@ -134,7 +135,8 @@ public class MainFrameThread extends Thread {
                 return;
             }
 
-            Type type = new TypeToken<TreeSet<SimpleComment>>(){}.getType();
+            Type type = new TypeToken<TreeSet<SimpleComment>>() {
+            }.getType();
             String json = response.getBody();
             Console.log(json);
             TreeSet<SimpleComment> set = gson.fromJson(json, type);
@@ -177,7 +179,7 @@ public class MainFrameThread extends Thread {
             }
 
             String bodyMessage = response.getBody();
-            if(bodyMessage.equals("CHANGED LIKE"))
+            if (bodyMessage.equals("CHANGED LIKE"))
                 page.setLikeSetted(true);
 
             page.addDislike();
@@ -196,7 +198,7 @@ public class MainFrameThread extends Thread {
             }
 
             String bodyMessage = response.getBody();
-            if(bodyMessage.equals("CHANGED LIKE"))
+            if (bodyMessage.equals("CHANGED LIKE"))
                 page.setDislikeSetted(true);
 
             page.addLike();
@@ -230,7 +232,7 @@ public class MainFrameThread extends Thread {
 
     private void performViewPost() {
         PostBanner banner = (PostBanner) ActionPipe.getParameter();
-        if(banner.isRewin()) {
+        if (banner.isRewin()) {
             performOpenRewin(banner);
             return;
         }
@@ -291,23 +293,23 @@ public class MainFrameThread extends Thread {
         FollowersPage page = Pages.FOLLOW_PAGE;
         //la FollowersPage è suddivisa in 2 sezioni: i followers e i following
 
-        for (String follow : storage.getFollowing()) {
-            //questi vanno nella sezione a destra -> posso solo unfollow
-            page.appendBanner(follow, FollowersPage.Type.FOLLOWING);
-        }
+//        for (String follow : storage.getFollowing()) {
+//            //questi vanno nella sezione a destra -> posso solo unfollow
+//            page.appendBanner(follow, FollowersPage.Type.FOLLOWING);
+//        }
 
         //Questi vanno a sinistra
-        for (String followers : storage.getFollowers()) {
-            //se già sto seguendo questo utente.. -> metto unfollow
-            if(storage.getFollowing().contains(followers)) {
-                FollowersPage.PageBanner banner = page.newBanner(followers, FollowersPage.Type.FOLLOWING);
-                page.addLeft(banner);
-                continue;
-            }
-
-            //..altrimenti metto possibilità di follow
-            page.appendBanner(followers, FollowersPage.Type.FOLLOWER);
-        }
+//        for (String followers : storage.getFollowers()) {
+//            //se già sto seguendo questo utente.. -> metto unfollow
+//            if(storage.getFollowing().contains(followers)) {
+//                FollowersPage.PageBanner banner = page.newBanner(followers, FollowersPage.Type.FOLLOWING);
+//                page.addLeft(banner);
+//                continue;
+//            }
+//
+//            //..altrimenti metto possibilità di follow
+//            page.appendBanner(followers, FollowersPage.Type.FOLLOWER);
+//        }
 
         frame.switchPage(page);
     }
@@ -355,8 +357,9 @@ public class MainFrameThread extends Thread {
             }
 
             clickedBanner.setUnfollow();
-            downloadPostOf(username);
+            downloadPostsOf(username);
             storage.getFollowing().add(username);
+            Pages.FOLLOW_PAGE.appendBanner(username, FollowersPage.Type.FOLLOWING);
             return;
         }
 
@@ -373,10 +376,10 @@ public class MainFrameThread extends Thread {
             storage.getFollowing().add(username);
             page.appendBanner(username, FollowersPage.Type.FOLLOWING);
             FollowersPage.PageBanner banner = page.getFromLeft(username);
-            if(banner != null)
+            if (banner != null)
                 banner.doUnfollow();
 
-            downloadPostOf(username);
+            downloadPostsOf(username);
         }
     }
 
@@ -396,9 +399,11 @@ public class MainFrameThread extends Thread {
             HomePage home = Pages.HOME_PAGE;
             home.removePostIf(p -> p.getAuthor().equals(username));
             storage.getFollowing().remove(username);
+            Pages.FOLLOW_PAGE.removeFromRight(username);
             if (!home.containsPosts()) {
                 home.showBackground();
             }
+            return;
         }
 
         if (frame.getCurrentPage() instanceof FollowersPage page) {
@@ -417,7 +422,7 @@ public class MainFrameThread extends Thread {
 
             page.removeFromRight(username);
             FollowersPage.PageBanner banner = page.getFromLeft(username);
-            if(banner != null)
+            if (banner != null)
                 banner.doFollow();
 
             if (!home.containsPosts()) {
@@ -449,10 +454,11 @@ public class MainFrameThread extends Thread {
 
             boolean logged = executeLogin(username, password);
             if (logged) {
-                registerToRegistrationService(username);
 
                 frame.switchPage(Pages.HOME_PAGE);
+                frame.setTitle(frame.getTitle() + " @logged as " + username);
                 setMyFollowing();
+                registerToFollowersService(username);
                 downloadMyPosts();
                 downloadPosts();
                 downloadTransactions();
@@ -490,7 +496,7 @@ public class MainFrameThread extends Thread {
         frame.switchPage(Pages.DISCOVER_PAGE);
     }
 
-    private void registerToRegistrationService(String username) {
+    private void registerToFollowersService(String username) {
         try {
             boolean reg = followersService.register(username, storage);
             if (!reg) {
@@ -507,7 +513,7 @@ public class MainFrameThread extends Thread {
             String title = page.getNewPostTitle();
             String content = page.getNewPostContent();
 
-            if(title.isBlank() || content.isBlank()) {
+            if (title.isBlank() || content.isBlank()) {
                 showErrorMessage("I campi titolo e contenuto non possono essere vuoti!");
                 return;
             }
@@ -544,6 +550,7 @@ public class MainFrameThread extends Thread {
         }
 
         serviceManager.reconnect();
+        frame.setTitle("Winsome - Social Network");
         frame.switchPage(Pages.LOGIN_PAGE);
     }
 
@@ -607,6 +614,10 @@ public class MainFrameThread extends Thread {
 
         ArrayList<String> following = gson.fromJson(myFollowing, type);
         storage.setFollowing(following);
+        for (String follow : storage.getFollowing()) {
+            //questi vanno nella sezione a destra -> posso solo unfollow
+            Pages.FOLLOW_PAGE.appendBanner(follow, FollowersPage.Type.FOLLOWING);
+        }
     }
 
     private void downloadPosts() {
@@ -663,17 +674,18 @@ public class MainFrameThread extends Thread {
         HashMap<String, String> dateMap = getDateMap();
         if (dateMap == null) return;
 
+        Console.log("DateMap: " + dateMap);
         WSRequest request = new WSRequest(WS_OPERATIONS.GET_FRIENDS_POST_FROM_DATE, gson.toJson(dateMap));
 
         serviceManager.submitRequest(request, response -> {
             Type type = new TypeToken<ArrayList<SimplePost>>() {
             }.getType();
             ArrayList<SimplePost> posts = gson.fromJson(response.getBody(), type);
+            Console.log("Post degli amici: " + posts, "(Data)");
             if (posts.isEmpty()) {
                 return;
             }
 
-            Console.log("Post degli amici: " + posts, "(Data)");
             List<PostBanner> postBanners = posts.stream().map(simplePost -> {
                 PostBanner banner = new PostBanner(simplePost);
                 if (simplePost.isRewinned()) {
@@ -695,9 +707,10 @@ public class MainFrameThread extends Thread {
         });
     }
 
-    private void downloadPostOf(String username) {
+    private void downloadPostsOf(String username) {
         HashMap<String, String> dateMap = new HashMap<>();
         dateMap.put(username, "0");
+
         WSRequest request = new WSRequest(WS_OPERATIONS.GET_FRIENDS_POST_FROM_DATE, gson.toJson(dateMap));
 
         serviceManager.submitRequest(request, response -> {
@@ -733,25 +746,42 @@ public class MainFrameThread extends Thread {
 
     private HashMap<String, String> getDateMap() {
         Set<PostBanner> banners = Pages.HOME_PAGE.getBanners();
-        if (banners.isEmpty())
+        HashMap<String, String> dateMap = new HashMap<>();
+
+        for (String follow : storage.getFollowing()) {
+            dateMap.put(follow, "0");
+        }
+
+        if (banners.isEmpty() && storage.getFollowing().isEmpty())
             return null;
 
-        HashMap<String, String> dateMap = new HashMap<>();
+        if (banners.isEmpty() && !storage.getFollowing().isEmpty()) {
+            return dateMap;
+        }
+
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yy - HH:mm:ss");
 
         for (PostBanner p : banners) {
-            String previousDate = dateMap.putIfAbsent(p.getAuthor(), p.getDate());
-            if (previousDate != null) {
-                try {
-                    Date d1 = sdf.parse(p.getDate());
-                    Date d2 = sdf.parse(previousDate);
-                    if (d2.before(d1))
-                        dateMap.put(p.getAuthor(), p.getDate());
-                } catch (ParseException e) {
-                    e.printStackTrace();
-                }
+            if (p.isRewin()) continue;
+
+            String previousDate = dateMap.get(p.getAuthor());
+            if(previousDate.equals("0")) {
+                dateMap.put(p.getAuthor(), p.getDate());
+                continue;
             }
+
+            try {
+                Date d1 = sdf.parse(p.getDate());
+                Date d2 = sdf.parse(previousDate);
+                if (d2.before(d1))
+                    dateMap.put(p.getAuthor(), p.getDate());
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+
         }
+
         return dateMap;
     }
+
 }
