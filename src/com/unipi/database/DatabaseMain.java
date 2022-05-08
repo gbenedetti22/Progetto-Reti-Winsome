@@ -23,13 +23,23 @@ import java.util.stream.Collectors;
 import static com.unipi.server.ServerMain.debugTask;
 
 public class DatabaseMain {
+    //Selettore per la gestione dei canali
     private static final PipedSelector selector = new PipedSelector();
     private static Database database;
+
+    // threadpool per la gestione dei client
     private static ExecutorService threadPool = Executors.newCachedThreadPool(ThreadWorker.getWorkerFactory());
+
+    //porta di default per l ascolto
     private static int port = 45675;
+
+    //indica se il database deve stampare dei messaggi di debug
     private static boolean debug = false;
     private static boolean running = true;
     private static String delay = "5m";
+
+    // thread che viene eseguito nella fase di chiusura forzata del Database.
+    // Se viene invocato il metodo safeClose(), il thread non viene fatto partire
     private static Thread closingThread;
 
     public static void main(String[] args) {
@@ -72,6 +82,7 @@ public class DatabaseMain {
         }
     }
 
+    // funzione usata dal PipedSelector per analizzare le chiavi passate come parametro
     private static void readSelectedKey(SelectionKey key) {
         try {
             if (key.isAcceptable()) {
@@ -86,7 +97,7 @@ public class DatabaseMain {
                 RequestReader reader = new RequestReader(client, selector, debug);
 
                 Future<?> task = threadPool.submit(reader);
-                debugTask(task);
+//                debugTask(task);
             } else if (key.isWritable()) {
                 key.cancel();
 
@@ -94,13 +105,15 @@ public class DatabaseMain {
                 RequestWriter writer = new RequestWriter(client, selector, (Packet) key.attachment());
 
                 Future<?> task = threadPool.submit(writer);
-                debugTask(task);
+//                debugTask(task);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    // Funzione che legge il file prop.properties e inizializza i parametri di configurazione
+    // il file viene cercato nella cartella corrente e non è possibile cambiare questa cosa (scelta implementativa)
     private static void readProp() {
         Properties prop = new Properties();
 
@@ -140,6 +153,7 @@ public class DatabaseMain {
     }
 
     //funzione molto rudimentale, serve più a dare l idea che ad essere efficiente
+    // serve a rimuovere le # dai tutti i file
     private static void clearDatabase() {
         System.out.println("===========================================================\n");
         System.out.println("Avvio pulizia Database...");

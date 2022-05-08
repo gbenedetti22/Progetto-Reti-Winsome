@@ -10,7 +10,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class PriorityAsyncExecutor extends Thread {
+/*
+    Classe che permette il salvataggio asincrono sul disco.
+    Viene fatto uso di questa classe per fare in modo che sia un thread solo ad accedere sul disco
+    e che i thread worker possano occuparsi delle richieste.
+
+    Viene fatto uso di una PriorityBlockingQueue per gestire i salvataggi asincroni.
+    Il tempo di attesa tra un salvataggio e l'altro è definibile nel file di configurazione del database.
+    Se la queue è troppo piena, il thread worker segnalerà la cosa al PriorityAsyncSaver e lui comincierà subito a svuotarla (svegliandosi prematuramente).
+ */
+
+public class PriorityAsyncSaver extends Thread {
     private static class Entry implements Comparable<Entry> {
         Runnable runnable;
         StandardPriority priority;
@@ -38,7 +48,7 @@ public class PriorityAsyncExecutor extends Thread {
     private Condition saver;
     private Condition worker;
 
-    public PriorityAsyncExecutor(String delay) {
+    public PriorityAsyncSaver(String delay) {
         this.queue = new PriorityBlockingQueue<>();
         this.database = DatabaseMain.getDatabase();
         this.delay = delay;
@@ -73,19 +83,22 @@ public class PriorityAsyncExecutor extends Thread {
 
         while (!queue.isEmpty()) {
             Entry e = queue.poll();
-            e.runnable.run();
 
             lock.lock();
             if (lock.hasWaiters(worker)) {
-                worker.signal();
+                worker.signal();    //Se ci sono dei thread in attesa, notifico che adesso c'è un posto libero
             }
             lock.unlock();
+
+            e.runnable.run();
         }
 
         System.out.println("Salvataggio completato!");
+        System.out.println("\n===========================================================\n");
     }
 
-    public void asyncExecute(Runnable runnable, StandardPriority priority) {
+    public void asyncSave(Runnable runnable, StandardPriority priority) {
+        // se la queue è piena, mando un segnale, sveglio il PriorityAsyncSaver e attendo che ci sia posto nella queue
         while (queue.size() == Integer.MAX_VALUE) {
             try {
                 lock.lock();

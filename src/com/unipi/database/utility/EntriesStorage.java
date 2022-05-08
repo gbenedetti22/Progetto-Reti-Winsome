@@ -15,7 +15,6 @@ import java.util.UUID;
 public class EntriesStorage {
     private HashMap<UUID, Entry> map;
     private Database database;
-
     public EntriesStorage(Database database) {
         this.database = database;
         this.map = new HashMap<>();

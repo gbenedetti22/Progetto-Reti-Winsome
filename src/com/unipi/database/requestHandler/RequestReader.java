@@ -24,6 +24,9 @@ import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.*;
 
+/*
+    Classe che si occupa della lettura e del parsing dei comandi ricevuti dal Server
+ */
 public class RequestReader implements Runnable {
     private SocketChannel socket;
     private PipedSelector selector;
@@ -288,11 +291,11 @@ public class RequestReader implements Runnable {
         try {
             c = database.appendComment(UUID.fromString(idPost), author, content);
         }catch (UnsupportedOperationException e) {
-            response = new Packet(Packet.FUNCTION.COMMENT, "217");
+            response = new Packet(Packet.FUNCTION.COMMENT, "217"); //Post not found
             return;
         }
 
-        response = new Packet(Packet.FUNCTION.COMMENT, c != null ? c : "210");
+        response = new Packet(Packet.FUNCTION.COMMENT, c != null ? c : "210"); //210 = comment not created
     }
 
     //LIKE: USERNAME IDPOST
@@ -337,10 +340,18 @@ public class RequestReader implements Runnable {
 
     //UPDATE: user coins date idPost
     //UPDATE: [a, b, c ...] coins date
+
+    // metodo per l assegnamento delle ricompense
+    // i comandi possibili sono 2:
+    // 1) update: user coins date idPost -> assegno la ricompensa al creatore del post
+    // 2) update: [a, b, c ...] coins date -> assegno la ricompensa a tutti i curatori
+
+    // nella 1) aggiorno anche il numero di interazioni su quel post
     private void updateUser(String s) {
         if (s.startsWith("[")) {
-            String array = s.substring(0, s.indexOf(']') + 1);
-            String[] data = s.substring(s.indexOf(']') + 1).trim().split(" ", 2);
+//            [a, b, c ...] coins date
+            String array = s.substring(0, s.indexOf(']') + 1);  // [a, b, c ...]
+            String[] data = s.substring(s.indexOf(']') + 1).trim().split(" ", 2); //[coins, date]
 
             String coins = data[0];
             String date = data[1];
@@ -348,12 +359,14 @@ public class RequestReader implements Runnable {
                 Database.getDateFormat().getSimpleDateFormat().parse(date);
             } catch (ParseException e) {
                 e.printStackTrace();
-                response = new Packet(Packet.FUNCTION.UPDATE_USER, "204");
+                response = new Packet(Packet.FUNCTION.UPDATE_USER, "204"); // date format error
                 return;
             }
 
+            //converto la stringa "[a, b, c ...]" in un array di stringhe effettivo
             String[] users = array.replace("[", "").replace("]", "").split(",");
             StringBuilder sb = new StringBuilder();
+            //per ogni utente, aggiungo la transazione
             for (String user : users) {
                 User u = database.getUser(user.trim());
                 if (u != null) {
@@ -369,7 +382,7 @@ public class RequestReader implements Runnable {
                 return;
             }
 
-            response = new Packet(Packet.FUNCTION.UPDATE_USER, "200");
+            response = new Packet(Packet.FUNCTION.UPDATE_USER, "200"); //tutto ok
             return;
         }
 
@@ -388,14 +401,14 @@ public class RequestReader implements Runnable {
             Database.getDateFormat().getSimpleDateFormat().parse(date);
         } catch (ParseException e) {
             e.printStackTrace();
-            response = new Packet(Packet.FUNCTION.UPDATE_USER, "204");
+            response = new Packet(Packet.FUNCTION.UPDATE_USER, "204");  //date format error
             return;
         }
 
         User u = database.getUser(user);
         if (u != null) {
             u.addTransaction(coins, date);
-            response = new Packet(Packet.FUNCTION.UPDATE_USER, "200");
+            response = new Packet(Packet.FUNCTION.UPDATE_USER, "200"); //success
             return;
         }
 
@@ -410,6 +423,6 @@ public class RequestReader implements Runnable {
             return;
         }
 
-        response = new Packet(Packet.FUNCTION.GET_TRANSACTIONS, "207");
+        response = new Packet(Packet.FUNCTION.GET_TRANSACTIONS, "207"); //user not found
     }
 }

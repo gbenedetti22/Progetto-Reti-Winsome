@@ -21,8 +21,21 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.UUID;
 
+/*
+    Oggetto che permette la ricreazione del grafo al riavvio del database.
+    La ricreazione avviene con le seguenti priorità:
+    1 utente
+    2 post
+    3 commenti
+    4 like
+    5 rewins
+    Nota: con "se l elemento è presente nel db" si intende "se l elemento è presente nelle tabelle tableUsers o tablePosts".
+ */
 public class GraphLoader {
     private Gson gson;
+
+    // il grafo si basa sulle 2 tabelle (tableUsers e tablePosts)
+    // Se un elemento non sta nel db, allora non viene caricato e viene eliminato
     private Database db;
     private WinsomeGraph graph;
 
@@ -33,43 +46,36 @@ public class GraphLoader {
         gson = new GsonBuilder().setPrettyPrinting().setDateFormat(Database.getDateFormat().toString()).create();
     }
 
+    // metodo per ricreazre il grafo leggendo i file sul disco
     public void loadGraph() throws IOException {
         File dbFolder = new File(Database.getName());
 
-        File[] users = dbFolder.listFiles(f -> (!f.getName().equals("rewins") || !f.getName().equals("new_entries")) && !f.isDirectory());
+        // considero tutti i file che non sono il rewins file e le directory
+        File[] users = dbFolder.listFiles(f -> (!f.getName().equals("rewins") && !f.isDirectory()));
+
         if (users != null) {
             for (File file : users) {
                 RandomAccessFile raf = new RandomAccessFile(file, "rw");
                 String username = file.getName();
                 if (!loadUser(username)) continue;
 
-                long linePosition = 0;
+                long linePosition = 0; // contiene la posizione della riga corrente (partendo dalla prima lettera)
                 String line;
                 while ((line = raf.readLine()) != null) {
                     if (!line.startsWith("#")) {
                         String[] lineSplitted = line.split(";", 2);
+                        boolean loaded = true;
+
                         switch (lineSplitted[0]) {
-                            case "POST" -> {
-                                boolean loaded = loadPost(username, lineSplitted[1], linePosition);
-                                if (!loaded) {
-                                    raf.seek(linePosition);
-                                    raf.writeBytes("#".repeat(line.length()));
-                                }
-                            }
-                            case "COMMENT" -> {
-                                boolean loaded = loadComment(username, lineSplitted[1], linePosition);
-                                if (!loaded) {
-                                    raf.seek(linePosition);
-                                    raf.writeBytes("#".repeat(line.length()));
-                                }
-                            }
-                            case "LIKE" -> {
-                                boolean loaded = loadLike(username, lineSplitted[1], linePosition);
-                                if (!loaded) {
-                                    raf.seek(linePosition);
-                                    raf.writeBytes("#".repeat(line.length()));
-                                }
-                            }
+                            case "POST" -> loaded = loadPost(username, lineSplitted[1], linePosition);
+                            case "COMMENT" -> loaded = loadComment(username, lineSplitted[1], linePosition);
+                            case "LIKE" -> loaded = loadLike(username, lineSplitted[1], linePosition);
+                        }
+
+                        // Se non ho messo nel grafo la entry corrente, la rimuovo dal file con #
+                        if (!loaded) {
+                            raf.seek(linePosition);
+                            raf.writeBytes("#".repeat(line.length()));
                         }
                     }
 
@@ -82,6 +88,8 @@ public class GraphLoader {
         loadRewins();
     }
 
+    // carico un utente sse è presente nel db
+    // Viene creato un nodo utente, i relativi tagsGroup e postsGroup e i tag vengono appesi al nodo tagsGroup
     private boolean loadUser(String username) {
         User u = db.getUser(username);
         if (u == null) return false;
@@ -108,6 +116,8 @@ public class GraphLoader {
         return true;
     }
 
+    // viene caricato un post sse è presente nel db
+    // Viene creato un nodo post, i relativi likesGroup e commentsGroup
     private boolean loadPost(String username, String id, long linePosition) {
         UUID idPost = UUID.fromString(id);
         Post p = db.getPost(idPost);
@@ -141,6 +151,9 @@ public class GraphLoader {
         return false;
     }
 
+    // metodo per caricare un singolo commento.
+    // Il commento viene caricato sse esiste un file json nella cartella jsons che come nome ha l'id del commento
+    // Se il commento esiste, allora viene caricato dal json e appeso al post di riferimento
     private boolean loadComment(String username, String record, long linePosition) {
         try {
             String[] splittedRecord = record.split(";", 2);
@@ -170,6 +183,7 @@ public class GraphLoader {
                 GroupNode commentsGroup = p.getCommentsGroupNode();
 
                 graph.putEdge(commentsGroup, commentNode);
+                // Se il commento era nuovo, allora lo aggiungi all entries storage per il calcolo delle ricompense
                 if (!newEntryLabel.startsWith("#") && !newEntryLabel.isBlank()) {
                     db.getEntriesStorage().add(c);
                 }
@@ -226,6 +240,8 @@ public class GraphLoader {
         return false;
     }
 
+    // metodo per ricreare i rewins.
+    // un rewin esiste se esite il post originale nel db. In tal caso viene ricreato il collegamento.
     private void loadRewins() {
         String rewinsFile = Database.getName() + File.separator + "rewins";
 
@@ -236,7 +252,7 @@ public class GraphLoader {
             RandomAccessFile in = new RandomAccessFile(f, "rw");
             String line;
             while ((line = in.readLine()) != null) {
-                if (line.startsWith("#")) continue;
+                if (line.startsWith("#")) continue; // questo raramente è vero, ma con un implementazione più efficiente, potrebbe essere utile
 
                 String[] record = line.split(";", 2);
                 String username = record[0];
@@ -245,7 +261,7 @@ public class GraphLoader {
                 User u = db.getUser(username);
                 Post p = db.getPost(idPost);
                 if (u == null || p == null) {
-                    in.seek(Math.max(in.getFilePointer() - line.length() - 2, 0));
+                    in.seek(Math.max(in.getFilePointer() - line.length() - 2, 0)); // torno all inizio della riga
                     in.writeBytes("#".repeat(line.length()));
                     continue;
                 }
@@ -260,6 +276,7 @@ public class GraphLoader {
         }
     }
 
+    // metodo che restituisce il path del file json nella cartella jsons
     private String jsonPathOf(String filename) {
         return Database.getName() + File.separator + "jsons" + File.separator + filename + ".json";
     }

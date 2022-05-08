@@ -32,7 +32,6 @@ import static com.unipi.server.requestHandler.WSRequest.WS_OPERATIONS.GET_FOLLOW
 public class ServerMain extends UnicastRemoteObject implements RegistrationService, FollowersService {
     private static final PipedSelector selector = new PipedSelector();
     private static ExecutorService threadPool = Executors.newCachedThreadPool(ServerThreadWorker.getWorkerFactory());
-    private static boolean running = true;
     private static ConcurrentHashMap<SocketChannel, String> usersLogged = new ConcurrentHashMap<>();
     private static ConcurrentHashMap<String, FollowersDatabase> callbacksMap = new ConcurrentHashMap<>();
 
@@ -90,13 +89,12 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
             System.out.println("Servizio di calcolo delle ricompense Online");
             System.out.println("Delay: " + rewardCalculator.getDelay());
             System.out.println("Servizio di followers Online");
-            System.out.println(running ? "Server Online" : "");
+            System.out.println("Server Online");
             System.out.println();
-            while (running) {
+            while (true) {
                 selector.selectKey(ServerMain::readSelectedKey);
             }
 
-            server.close();
         } catch (IOException | AlreadyBoundException e) {
             e.printStackTrace();
         }
@@ -133,11 +131,12 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
 
     }
 
+    // funzione di puro debug. Se il task fallisce viene lanciata un eccezione
     public static void debugTask(Future<?> task) {
         new Thread(() -> {
             try {
                 task.get();
-            } catch (InterruptedException | ExecutionException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }).start();
@@ -147,6 +146,8 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
         return usersLogged;
     }
 
+    // funzione per stabilire se il database è online.
+    // viene aperta e chiusa una connessione.
     private static boolean isDatabaseOnline() {
         String dbAddress = (String) ServerProperties.getValues().get(DB_ADDRESS);
         int dbPort = (int) ServerProperties.getValues().get(DB_PORT);
@@ -158,9 +159,6 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
         }
     }
 
-    public static void stop() {
-        running = false;
-    }
 
     public static void unregisterClient(String username) {
         if(username == null) return;

@@ -22,6 +22,9 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.*;
 
+/*
+    Classe per inviare le risposte al Server
+ */
 public class RequestWriter implements Runnable {
     private SocketChannel socket;
     private PipedSelector selector;
@@ -319,6 +322,7 @@ public class RequestWriter implements Runnable {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void friendsPosts() {
         if (packet.getMessage() instanceof String code) {
             try {

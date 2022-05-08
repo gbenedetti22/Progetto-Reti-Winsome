@@ -21,6 +21,14 @@ public class Like implements Serializable {
         linePosition = -1;
     }
 
+    public Like(Like l) {
+        this.idPost = l.idPost;
+        this.type = l.type;
+        this.username = l.username;
+        this.idLike = l.idLike;
+        this.linePosition = l.linePosition;
+    }
+
     public UUID getIdPost() {
         return idPost;
     }
