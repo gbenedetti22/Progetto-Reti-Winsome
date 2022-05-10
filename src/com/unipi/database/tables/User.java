@@ -11,7 +11,6 @@ public class User {
     private List<String> tags;
     private HashSet<String> following;
     private HashSet<String> followers;
-    private Date dateOfLastPost;
     private List<WinsomeTransaction> transactions;
     private transient GroupNode tagsGroupNode;
     private transient GroupNode postsGroupNode;
@@ -76,14 +75,6 @@ public class User {
 
     public void setPostsGroupNode(GroupNode postsGroupNode) {
         this.postsGroupNode = postsGroupNode;
-    }
-
-    public Date getDateOfLastPost() {
-        return dateOfLastPost;
-    }
-
-    public void setDateOfLastPost(Date date) {
-        this.dateOfLastPost = date;
     }
 
     public void addTransaction(String coins, String date) {

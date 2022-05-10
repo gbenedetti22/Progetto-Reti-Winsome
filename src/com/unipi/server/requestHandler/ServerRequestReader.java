@@ -24,17 +24,25 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Callable;
 
+/*
+    Classe che gestisce le richieste del client.
+    Questa classe implementa Callable perchè viene utilizzata anche per l RMI (vedi metodo di registrazione) e quindi
+    è necessaria una risposta
+ */
 public class ServerRequestReader implements Callable<String> {
-    private SocketChannel socket;
-    private PipedSelector selector;
-    private Gson gson;
+    private SocketChannel socket; // Socket del client
+    private PipedSelector selector; // Selector per la comunicazione con il client
+    private Gson gson; // Gson per la serializzazione/deserializzazione dei messaggi
     private ConcurrentChannelLineReceiver in;
     private ChannelLineSender out;
-    private SocketChannel db_connection;
+    private SocketChannel db_connection; // Socket per la comunicazione con il database
+
+    // Se impostato, il thread corrente non si metterà in ascolto sul Socket ma soddisferà la richiesta
+    // Serve per l RMI, in quanto il Client remoto imposterà una richiesta "manualmente"
     private WSRequest request;
     private WSResponse response;
-    private Map<SocketChannel, String> logTable;
-    private String username;
+    private Map<SocketChannel, String> logTable; // tabella degli utenti loggati
+    private String username; // username del client corrente
 
     public ServerRequestReader(SocketChannel socket, PipedSelector selector) {
         this.socket = socket;
@@ -69,7 +77,7 @@ public class ServerRequestReader implements Callable<String> {
 
         try {
             String message = in.receiveLine();
-            if (message == null) {
+            if (message == null) {  // Se ho raggiunto EOF, il Client è uscito (anche brutalmente), quindi chiudo la connessione
                 ServerMain.unregisterClient(username);
                 ServerMain.getUsersLoggedTable().remove(socket);
 
@@ -239,6 +247,12 @@ public class ServerRequestReader implements Callable<String> {
         return "OK";
     }
 
+    // Metodo per eseguire la registrazione.
+    // Viene inviato il comando create user per creare un utente sul DB
+    // Questo metodo viene usato mediante RMI, quindi:
+    // 1) il client chiama un metodo stub che inizializza questa classe e la passa ad un thread pool
+    // 2) Quando un thread è libero, viene invocato questo metodo (WSRequest sarà diverso da null)
+    // 3) Essendo un interfaccia Callable, il risultato dell operazione sarà ritornato sotto forma di string
     private String performRegistration(WSRequest request) {
         Object[] params = request.getParams();
 
@@ -280,6 +294,7 @@ public class ServerRequestReader implements Callable<String> {
             return s;
         }
 
+        // Da qui in poi, i parametri ricevuti dal client sono corretti
         String username = (String) params[0];
         String password = (String) params[1];
         if(username.isBlank() && password.isBlank()) {
@@ -430,6 +445,8 @@ public class ServerRequestReader implements Callable<String> {
             Set<String> set = (Set<String>) dbResponse.getMessage();
             TreeSet<String> sortedSet = new TreeSet<>(set);
 
+            // I followers devono essere aggiornati tramite RMI
+            // L interfaccia su cui questi vengono settati, viene presa dal main
             FollowersDatabase clientFollowers = ServerMain.getCallback(username);
             if (clientFollowers == null) {
                 String s = "Utente: " + username + " non registrato al servizio di followers";
@@ -802,7 +819,7 @@ public class ServerRequestReader implements Callable<String> {
             long nDislikes = 0;
 
             for (SimpleLike l : likes) {
-                if (l.getType() == Like.type.LIKE) {
+                if (l.getType() == Like.TYPE.LIKE) {
                     nLikes++;
                 } else {
                     nDislikes++;
@@ -865,7 +882,7 @@ public class ServerRequestReader implements Callable<String> {
             long nDislikes = 0;
 
             for (SimpleLike l : likes) {
-                if (l.getType() == Like.type.LIKE) {
+                if (l.getType() == Like.TYPE.LIKE) {
                     nLikes++;
                 } else {
                     nDislikes++;

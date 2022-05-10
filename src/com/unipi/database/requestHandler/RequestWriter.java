@@ -13,7 +13,7 @@ import com.unipi.database.graph.graphNodes.Node;
 import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Like;
 import com.unipi.database.tables.Post;
-import com.unipi.database.utility.ThreadWorker;
+import com.unipi.utility.ThreadWorker;
 import com.unipi.utility.channelsio.ChannelLineSender;
 import com.unipi.utility.channelsio.PipedSelector;
 
@@ -23,7 +23,8 @@ import java.nio.channels.SocketChannel;
 import java.util.*;
 
 /*
-    Classe per inviare le risposte al Server
+    Classe per inviare le risposte al Server.
+    Questa classe riceve il pacchetto dalla classe RequestReader e lo inoltra al Server (vedi classe Packet)
  */
 public class RequestWriter implements Runnable {
     private SocketChannel socket;

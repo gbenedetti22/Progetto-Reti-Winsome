@@ -1,6 +1,6 @@
 package com.unipi.server;
 
-import com.unipi.database.utility.ThreadWorker;
+import com.unipi.utility.ThreadWorker;
 import com.unipi.utility.channelsio.ChannelLineSender;
 
 import java.io.IOException;
@@ -11,6 +11,11 @@ import java.util.concurrent.ThreadFactory;
 
 import static com.unipi.server.ServerProperties.NAMES.CLOSE_DB;
 
+/*
+    Classe che estende le funzionalità del thread worker.
+    Oltre ad avere un ChannelSender e un ChannelReceiver (che eredita dalla classe padre),
+    contiene anche il Socket connesso al Database.
+ */
 public class ServerThreadWorker extends ThreadWorker {
 
     private SocketChannel socket;

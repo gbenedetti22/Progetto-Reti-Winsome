@@ -9,6 +9,10 @@ import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
+/*
+    Classe che gestisce le risposte del server
+    Semplicemente riceve i messaggi dalla classe ServerRequestReader e li invia al client in formato JSON
+ */
 public class ServerResponder implements Runnable {
     private SocketChannel socket;
     private PipedSelector selector;

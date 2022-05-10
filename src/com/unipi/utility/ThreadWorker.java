@@ -1,4 +1,4 @@
-package com.unipi.database.utility;
+package com.unipi.utility;
 
 import com.unipi.utility.channelsio.ChannelLineSender;
 import com.unipi.utility.channelsio.ConcurrentChannelLineReceiver;
@@ -6,6 +6,10 @@ import com.unipi.utility.channelsio.ChannelReceiver;
 
 import java.util.concurrent.ThreadFactory;
 
+/*
+    Classe che rappresenta un tipo thread che contiene al suo interno un ChannelSender e un ChannelReceiver, usabili
+    dai runnable per comunicare con il client.
+ */
 public class ThreadWorker extends Thread {
     private ConcurrentChannelLineReceiver receiver;
     private ChannelLineSender sender;

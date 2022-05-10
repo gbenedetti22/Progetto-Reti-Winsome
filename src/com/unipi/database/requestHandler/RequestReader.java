@@ -12,7 +12,7 @@ import com.unipi.database.graph.graphNodes.Node;
 import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Post;
 import com.unipi.database.tables.User;
-import com.unipi.database.utility.ThreadWorker;
+import com.unipi.utility.ThreadWorker;
 import com.unipi.utility.channelsio.ConcurrentChannelLineReceiver;
 import com.unipi.utility.channelsio.PipedSelector;
 
@@ -25,7 +25,8 @@ import java.text.ParseException;
 import java.util.*;
 
 /*
-    Classe che si occupa della lettura e del parsing dei comandi ricevuti dal Server
+    Classe che si occupa della lettura e del parsing dei comandi ricevuti dal Server.
+    Una volta processata la risposta, viene inoltrato un Packet a RequestWriter il quale lo inviarà al Client (vedi classe Packet)
  */
 public class RequestReader implements Runnable {
     private SocketChannel socket;
@@ -77,29 +78,29 @@ public class RequestReader implements Runnable {
         record = Arrays.stream(record).map(String::trim).toArray(String[]::new);
         Console.log(request);
         switch (record[0]) {
-            case "CREATE USER" -> createUser(record[1]);
-            case "FIND USER" -> findUser(record[1]);
-            case "GET FRIENDS BY TAG" -> discoverFriendsByTag(record[1]);
-            case "GET FOLLOWERS OF" -> getFollowersOf(record[1]);
-            case "GET FOLLOWING OF" -> getFollowingOf(record[1]);
+            case "CREATE USER" -> createUser(record[1]);    // Registrazione
+            case "FIND USER" -> findUser(record[1]);        // Login
+            case "GET FRIENDS BY TAG" -> discoverFriendsByTag(record[1]);   // Trovare utenti che hanno un tag in comune
+            case "GET FOLLOWERS OF" -> getFollowersOf(record[1]); // Reperire i followers
+            case "GET FOLLOWING OF" -> getFollowingOf(record[1]);   // Reperire i following
             case "FOLLOW" -> followUser(record[1]);
             case "UNFOLLOW" -> unfollowUser(record[1]);
             case "CREATE POST" -> publishPost(record[1]);
-            case "GET POST" -> getPost(record[1]);
-            case "OPEN REWIN" -> getRewin(record[1]);
-            case "GET ALL POSTS OF" -> getAllPostsOf(record[1]);
-            case "GET FRIENDS POSTS OF" -> getAllFriendsPosts(record[1]);
-            case "GET FRIENDS POST FROM DATE" -> getLatestFriendsPostsOf(record[1]);
-            case "GET COMMENTS FROM DATE" -> getLatestComments(record[1]);
+            case "GET POST" -> getPost(record[1]); // Vedere un Post
+            case "OPEN REWIN" -> getRewin(record[1]); // Se il post che voglio vedere è un Rewin, allora viene invocata questa per un maggior controllo
+            case "GET ALL POSTS OF" -> getAllPostsOf(record[1]); // Reperire tutti i Post di un utente
+            case "GET FRIENDS POSTS OF" -> getAllFriendsPosts(record[1]); // Reperire tutti i Post di tutti i follow di un utente (in pratica i Post che stanno nella Home)
+            case "GET FRIENDS POST FROM DATE" -> getLatestFriendsPostsOf(record[1]); // Reperire tutti i Post di tutti i follow di un utente usando la dateMap
+            case "GET COMMENTS FROM DATE" -> getLatestComments(record[1]); // Reperire tutti i commenti fatti dopo una certa data
             case "REWIN" -> rewin(record[1]);
             case "REMOVE REWIN" -> removeRewin(record[1]);
             case "COMMENT" -> addComment(record[1]);
             case "LIKE" -> addLike(record[1]);
             case "DISLIKE" -> addDislike(record[1]);
             case "REMOVE POST" -> removePost(record[1]);
-            case "PULL NEW ENTRIES" -> getLatestEntries();
-            case "UPDATE" -> updateUser(record[1]);
-            case "GET TRANSACTIONS" -> getTransactions(record[1]);
+            case "PULL NEW ENTRIES" -> getLatestEntries(); // Reperire le entries nuove per il calcolo delle ricompense
+            case "UPDATE" -> updateUser(record[1]); // Assegnare le ricompense
+            case "GET TRANSACTIONS" -> getTransactions(record[1]); // Ottenere la lista delle transazioni
             case "STOP", "QUIT", "EXIT", "CLOSE" -> DatabaseMain.safeClose();
             default -> {
             }

@@ -2,6 +2,11 @@ package com.unipi.server.requestHandler;
 
 import java.io.Serializable;
 
+/*
+    Classe che simboleggia la risposta di una richiesta da parte di un client.
+    status da informazioni sull esito dell operazione (se è andata a buon fine oppure no)
+    body rappresenta la risposta in JSON vera e propria (tipo se è stato richiesto di vedere un post vero e proprio, body conterrà il post in JSON)
+ */
 public class WSResponse implements Serializable {
     private CODES status;
     private String body = "NONE";

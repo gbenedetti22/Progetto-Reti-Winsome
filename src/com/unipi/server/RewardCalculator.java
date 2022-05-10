@@ -16,6 +16,9 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+/*
+    Classe che si occupa del calcolo delle ricompense
+ */
 public class RewardCalculator extends Thread {
     private char unit;
     private long timeout;
@@ -86,11 +89,13 @@ public class RewardCalculator extends Thread {
             String author = entry.HEADER.getAuthor();
             HashSet<String> curatori = entry.HEADER.getCuratori();
 
+            // Calcolo dei like
             n1 = Math.max(0, entry.LIKES.size() - entry.DISLIKES.size());
             n1 = round(Math.log(n1 + 1));
 
             HashMap<String, ArrayList<Comment>> comments = entry.COMMENTS;
 
+            // Calcolo dei commenti
             //Ciclo per new_people_commenting
             for (ArrayList<Comment> newComments : comments.values()) {
                 int Cp = newComments.size();
@@ -102,6 +107,7 @@ public class RewardCalculator extends Thread {
             Console.log("Calcolata ricompensa", reward);
             int author_percentage = (int) ServerProperties.getValue(ServerProperties.NAMES.AUTHOR_PERCENTAGE);
 
+            // Assegno la ricompense al creatore
             double author_reward = round(reward * author_percentage / 100);
             out.sendLine(String.format("UPDATE: %s %s %s %s", author, author_reward, sdf.format(new Date()), entry.HEADER.getIdPost().toString()));
             DBResponse response = (DBResponse) in.receiveObject();
@@ -109,7 +115,7 @@ public class RewardCalculator extends Thread {
                 Console.err("Errore nel salvataggio delle ricompense per: " + author);
             }
 
-            //aggiorno i curatori
+            //aggiorno le ricompense per i curatori
             double others = round((reward - author_reward) / curatori.size());
             out.sendLine(String.format("UPDATE: %s %s %s", curatori, others, sdf.format(new Date())));
             response = (DBResponse) in.receiveObject();
@@ -122,6 +128,7 @@ public class RewardCalculator extends Thread {
         ServerMain.sendUDPMessage("REWARD-CALCULATED");
     }
 
+    // unit può essere tipo: 1w, 5s, 2m ecc ergo "l unità di misura" è sempre l ultimo carattere
     private void sleep() throws InterruptedException {
         switch (unit) {
             case 's' -> TimeUnit.SECONDS.sleep(timeout);
@@ -134,6 +141,7 @@ public class RewardCalculator extends Thread {
 
     }
 
+    // metodo che controlla di aver inserito correttamente un valore valido per il tempo di timeout
     private void initClock() throws NumberFormatException {
         String delay = (String) ServerProperties.getValues().get(ServerProperties.NAMES.REWARD_TIME_DELAY);
         unit = delay.charAt(delay.length() - 1);

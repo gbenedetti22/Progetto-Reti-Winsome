@@ -1,5 +1,14 @@
 package com.unipi.database.requestHandler;
 
+/*
+    Classe che rappresenta un "pacchetto da consegnare".
+    Questo oggetto viene usato per far "comunicare" RequestReader e RequestWriter.
+    In pratica:
+     - La classe RequestReader processa la risposta, crea un pacchetto e la mette dentro al pacchetto da inviare al Server
+     - RequestWriter prende quel pacchetto e lo invia in base alla richiesta
+
+    Viene attuato questo procedimento perchè lettura e scrittura sul canale vengono fatti in modo distinto
+ */
 public class Packet {
     private FUNCTION function;
     private Object message;

@@ -10,9 +10,9 @@ public class Like implements Serializable {
     private final UUID idLike;
     private final UUID idPost;
     private final String username; //chi ha messo il like
-    private type type;
+    private TYPE type;
     private transient long linePosition;
-    public Like(UUID idPost, Like.type type, String username) {
+    public Like(UUID idPost, TYPE type, String username) {
         this.idPost = idPost;
         this.type = type;
         this.username = username;
@@ -21,23 +21,15 @@ public class Like implements Serializable {
         linePosition = -1;
     }
 
-    public Like(Like l) {
-        this.idPost = l.idPost;
-        this.type = l.type;
-        this.username = l.username;
-        this.idLike = l.idLike;
-        this.linePosition = l.linePosition;
-    }
-
     public UUID getIdPost() {
         return idPost;
     }
 
-    public Like.type getType() {
+    public TYPE getType() {
         return type;
     }
 
-    public void setType(Like.type type) {
+    public void setType(TYPE type) {
         this.type = type;
     }
 
@@ -82,7 +74,7 @@ public class Like implements Serializable {
         return Objects.hash(idLike);
     }
 
-    public enum type {
+    public enum TYPE {
         LIKE,
         DISLIKE
     }

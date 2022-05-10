@@ -1,5 +1,8 @@
 package com.unipi.server.requestHandler;
 
+/*
+    Classe che converte i codici ricevuti dal DB in string leggibili
+ */
 public class CodeConverter {
     public static String convert(String code) {
         switch (code) {

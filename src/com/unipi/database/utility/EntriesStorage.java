@@ -13,7 +13,7 @@ import java.util.HashSet;
 import java.util.UUID;
 
 public class EntriesStorage {
-    private HashMap<UUID, Entry> map;
+    private HashMap<UUID, Entry> map;   //tabella con tutte le entry
     private Database database;
     public EntriesStorage(Database database) {
         this.database = database;
@@ -21,20 +21,25 @@ public class EntriesStorage {
     }
 
     public void add(Like l) {
-        if (l.getType() == Like.type.LIKE) {
+        if (l.getType() == Like.TYPE.LIKE) {
             addLike(l);
         } else {
             addDislike(l);
         }
     }
 
+    // metodo che aggiunge un like all entries storage
+    // Se nell entries storage è già presente il post, viene aggiunto un like nel suo Set
+    // altrimenti viene creata ex-nova la entry
     private synchronized void addLike(Like l) {
+        // Se il post già sta nell entries storage, aggiungo il like al Set
         if (map.containsKey(l.getIdPost())) {
             map.get(l.getIdPost()).LIKES.add(l);
             map.get(l.getIdPost()).HEADER.addCurator(l.getUsername());
             return;
         }
 
+        // Se il post non esiste, allora lo aggiungo come entry e poi metto il like nel Set
         Post post = database.getPost(l.getIdPost());
         HeaderPost headerPost = new HeaderPost(l.getIdPost(), post.getAuthor(), post.getInteractions());
         HashSet<Like> likes = new HashSet<>();
@@ -58,6 +63,9 @@ public class EntriesStorage {
         map.put(l.getIdPost(), new Entry(headerPost, new HashSet<>(), dislikes, new HashMap<>()));
     }
 
+    // metodo per aggiungere un commento all entries storage
+    // Il procedimento è simile a quello adottato per i like,
+    // cambia solo che se l autore del commento non è presente nella tabella dei comments, viene aggiunto
     public synchronized void add(Comment c) {
         if (map.containsKey(c.getIdPost())) {
             map.get(c.getIdPost()).COMMENTS.putIfAbsent(c.getAuthor(), new ArrayList<>());
@@ -84,10 +92,12 @@ public class EntriesStorage {
         return array;
     }
 
+    // metodo per cambiare da like a dislike
+    // Il vecchio like viene trasformato in dislike spostandolo nel Set corrispondente
     public void changeLikeToDislike(Like l) {
         if (map.containsKey(l.getIdPost())) {
             if (!map.get(l.getIdPost()).LIKES.remove(l)) {
-                System.out.println("Errore: Tentato cambio di like a dislike");
+                System.out.println("Errore nel tentativo di cambio da like a dislike");
                 return;
             }
 
@@ -95,7 +105,7 @@ public class EntriesStorage {
             return;
         }
 
-        System.out.println("Errore: Tentato cambio di like a dislike");
+        System.out.println("Errore: Tentato cambio di like a dislike su un post inesistente");
     }
 
     public void chageDislikeToLike(Like l) {
@@ -117,6 +127,7 @@ public class EntriesStorage {
     }
 
 
+    // Classe di appoggio che rappresenta una Entry nell entry storage
     public static class Entry implements Serializable {
         public final HeaderPost HEADER;
         public final HashSet<Like> LIKES;

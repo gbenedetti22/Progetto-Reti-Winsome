@@ -143,8 +143,6 @@ public class GraphLoader {
             p.setCommentsGroupNode(comments);
             p.setLikesGroupNode(likes);
 
-            if (p.date().toDate().after(u.getDateOfLastPost()))
-                u.setDateOfLastPost(p.date().toDate());
             return true;
         }
 

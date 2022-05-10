@@ -40,7 +40,7 @@ public class ConcurrentChannelLineReceiver implements ChannelReceiver{
     /**
      * Vedi {@link ChannelLineReceiver#receiveLine()}<br>
      * <br>
-     * @return la stringa inviata mediante {@link ChannelLineSender#sendLine(String)}
+     * @return la stringa inviata mediante {@link ChannelLineSender#sendLine(String)} o null se EOF viene raggiunto
      * @throws IOException se avviene un errore di I/O
      */
     public String receiveLine() throws IOException {

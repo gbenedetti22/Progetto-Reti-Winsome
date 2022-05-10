@@ -3,7 +3,7 @@ package com.unipi.database;
 import com.unipi.database.requestHandler.Packet;
 import com.unipi.database.requestHandler.RequestReader;
 import com.unipi.database.requestHandler.RequestWriter;
-import com.unipi.database.utility.ThreadWorker;
+import com.unipi.utility.ThreadWorker;
 import com.unipi.utility.channelsio.PipedSelector;
 
 import java.io.*;
@@ -19,8 +19,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
-
-import static com.unipi.server.ServerMain.debugTask;
 
 public class DatabaseMain {
     //Selettore per la gestione dei canali

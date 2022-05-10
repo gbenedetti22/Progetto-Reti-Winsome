@@ -6,7 +6,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Pattern;
 
-
+/*
+    Classe ausiliaria per il controllo dei valori che arrivano dal Client
+ */
 public class ParamsValidator {
     private static final String uuidRegex = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$";
     private static final Pattern uuidPattern = Pattern.compile(uuidRegex);

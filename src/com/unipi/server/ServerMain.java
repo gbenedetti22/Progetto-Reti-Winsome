@@ -35,6 +35,8 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
     private static ConcurrentHashMap<SocketChannel, String> usersLogged = new ConcurrentHashMap<>();
     private static ConcurrentHashMap<String, FollowersDatabase> callbacksMap = new ConcurrentHashMap<>();
 
+    private static DatagramSocket udpSocket;
+
     protected ServerMain() throws RemoteException {
     }
 
@@ -51,6 +53,7 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
             server.socket().bind(new InetSocketAddress(45678));
 
             ServerMain registrationService = new ServerMain();
+            udpSocket = new DatagramSocket();
 
             Registry r1 = LocateRegistry.createRegistry((int) props.get(RMI_REG_PORT));
             r1.bind("REGISTER-SERVICE", registrationService);
@@ -61,10 +64,11 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
             RewardCalculator rewardCalculator = new RewardCalculator();
             rewardCalculator.start();
 
-            Runtime.getRuntime().addShutdownHook(new Thread(()-> {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("Avvio chiusura...");
                 System.out.println("Chiusura threadpool...");
                 threadPool.shutdownNow();
+                udpSocket.close();
 
                 try {
                     System.out.println("Chiusura selector...");
@@ -160,8 +164,10 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
     }
 
 
+    // Questo NON è il metodo usato per la de-registrazione di un client per le callback
+    // Questo viene chiamato se un client chiude la connessione senza de-registrarsi
     public static void unregisterClient(String username) {
-        if(username == null) return;
+        if (username == null) return;
 
         callbacksMap.remove(username);
     }
@@ -172,17 +178,20 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
 
     public static void sendUDPMessage(String message) {
         try {
-            DatagramSocket socket = new DatagramSocket();
+
             InetAddress address = InetAddress.getByName((String) ServerProperties.getValue(ServerProperties.NAMES.MULTICAST_ADDRESS));
             int port = (int) ServerProperties.getValue(ServerProperties.NAMES.MULTICAST_PORT);
             DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), address, port);
-            socket.send(packet);
-            socket.close();
+            udpSocket.send(packet);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    // Metodo chiamato in remoto per effettuare la registrazione
+    // L unica operazione consentita è ovviamente la "create user".
+    // A differenza della registrazione per il servizio di notifica sui followers, qua il thread attende una risposta.
+    // Questo perchè, prima di poter effettuare il login con il nuovo account, devo poter sapere se è "andato tutto bene"
     @Override
     public WSResponse performRegistration(WSRequest request) throws RemoteException {
         if (request.getOp() != WSRequest.WS_OPERATIONS.CREATE_USER) {
@@ -191,10 +200,7 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
 
         ServerRequestReader reader = new ServerRequestReader(request);
         /*
-         La Java RMI usa dei thread già di suo, quindi perchè usare un thread RMI per far eseguire la registrazione
-         al threadpool?
-
-         Perchè, per eseguire la registrazione, devo connettermi al Database e per evitare di aprire
+         Per eseguire la registrazione, devo connettermi al Database e per evitare di aprire
          e chiudere connessioni continuamente, uso quelle già aperte dai Thread nel threadpool.
 
          Quindi un thread RMI attende la risposta e poi si conclude. Questo perchè non posso agire direttamente
@@ -217,6 +223,13 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
         return WSResponse.newSuccessResponse();
     }
 
+    // Metodo per registrarsi al servizio di follow
+    // Nell esatto momento in cui un client si registra, viene fatta una richiesta asincrona per ricevere i followers.
+
+    // Da notare che viene usato il thread pool del Server perchè:
+    // 1) tutti i thread di esso hanno già una connessione stabilita con il Database
+    // 2) mi permette di uscire velocemente
+    // 3) non creo nuovi connessioni per ogni client, cosa inutile per via del punto 1
     @Override
     public boolean register(String username, FollowersDatabase callback) throws RemoteException {
         boolean reg = callbacksMap.putIfAbsent(username, callback) == null;
@@ -229,9 +242,10 @@ public class ServerMain extends UnicastRemoteObject implements RegistrationServi
         return false;
     }
 
+    // Metodo per de-registrarsi al servizio di follow
     @Override
     public boolean unregister(String username) throws RemoteException {
-        if(username == null) return false;
+        if (username == null) return false;
 
         if (!usersLogged.containsValue(username)) {
             return false;

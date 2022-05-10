@@ -244,8 +244,6 @@ public class Database implements WinsomeDatabase, Closeable {
             p.setCommentsGroupNode(comments);
             p.setLikesGroupNode(likes);
 
-            u.setDateOfLastPost(p.date().toDate());
-
             if(saver != null)
                 saver.asyncSave(() -> graphSaver.savePost(p), StandardPriority.VERY_HIGH);
             return p;
@@ -512,12 +510,12 @@ public class Database implements WinsomeDatabase, Closeable {
 
     @Override
     public String appendLike(String username, UUID idPost) {
-        return appendLikeDislike(username, idPost, Like.type.LIKE);
+        return appendLikeDislike(username, idPost, Like.TYPE.LIKE);
     }
 
     @Override
     public String appendDislike(String username, UUID idPost) {
-        return appendLikeDislike(username, idPost, Like.type.DISLIKE);
+        return appendLikeDislike(username, idPost, Like.TYPE.DISLIKE);
     }
 
     private boolean checkValidity(User u, Post p) {
@@ -539,7 +537,7 @@ public class Database implements WinsomeDatabase, Closeable {
 
     // metodo per aggiungere un like o un dislike.
     // Il cambio da like a dislike è possibile in
-    private String appendLikeDislike(String username, UUID idPost, Like.type type) {
+    private String appendLikeDislike(String username, UUID idPost, Like.TYPE type) {
         User u = tableUsers.get(username);
         Post p = tablePosts.get(idPost);
         if (u == null || p == null) return "210";
@@ -558,25 +556,29 @@ public class Database implements WinsomeDatabase, Closeable {
 
         GroupNode likesGroup = post.getLikesGroupNode();
 
-        Set<Node> likes = graph.adjacentNodes(post.getLikesGroupNode());
+        Set<Node> likes = graph.adjacentNodes(likesGroup);
+
         // Eseguo un for per controllare se il like è già stato inserito.
-        // Non posso usare la set.contains() perchè l hash viene fatto sull id del like (che viene assegnato quando viene creato)
+        // Non posso usare la set.contains() perchè l hash viene fatto sull id del like (che viene assegnato quando viene creato).
+        // Siccome la classe Set non permette di reperire elementi, non posso reperire l id del like già assegnato.
+        // Un idea sarebbe togliere il nodo e rimetterlo,
+        // ma non potendo, appunto, reperire l id del like originale non posso accedere al file sul disco per la modifica.
 
         // Se il cambio da like a dislike (o viceverse) viene eseguito, il calcolo delle ricompense viene fatto
         // sul nuovo like e non più su quello vecchio
-
         for (Node n : likes) {
             if (n instanceof GraphNode<?> g && g.getValue() instanceof Like l) {
                 if (l.getUsername().equals(username)) {
                     if (l.getType() != type) {
-                        if (l.getType() == Like.type.LIKE) {
+                        if (l.getType() == Like.TYPE.LIKE) {
                             entries.changeLikeToDislike(l);
                         } else {
                             entries.chageDislikeToLike(l);
                         }
 
                         l.setType(type);
-                        saver.asyncSave(() -> graphSaver.saveLike(username, l), StandardPriority.NORMAL);
+                        if(saver != null)
+                            saver.asyncSave(() -> graphSaver.saveLike(username, l), StandardPriority.NORMAL);
                         return "0"; //like cambiato
                     } else if (l.getType() == type)
                         return "212";
@@ -598,7 +600,8 @@ public class Database implements WinsomeDatabase, Closeable {
 
         graph.putEdge(likesGroup, likeNode);
         entries.add(like);
-        graphSaver.saveLike(post.getAuthor(), like);
+        if(saver != null)
+            saver.asyncSave(() -> graphSaver.saveLike(post.getAuthor(), like), StandardPriority.NORMAL);
         return "200";
     }
 

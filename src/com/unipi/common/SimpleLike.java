@@ -5,13 +5,13 @@ import com.unipi.database.tables.Like;
 import java.io.Serializable;
 
 public class SimpleLike implements Serializable {
-    private Like.type type;
+    private Like.TYPE type;
 
-    public SimpleLike(Like.type type) {
+    public SimpleLike(Like.TYPE type) {
         this.type = type;
     }
 
-    public Like.type getType() {
+    public Like.TYPE getType() {
         return type;
     }
 }

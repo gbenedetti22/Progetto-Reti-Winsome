@@ -5,6 +5,7 @@
     <option name="OPTION_SCOPE" value="public" />
     <option name="OPTION_DOCUMENT_TAG_AUTHOR" value="true" />
     <option name="OTHER_OPTIONS" value="-encoding utf8 -docencoding utf8 -charset utf8" />
+    <option name="OPEN_IN_BROWSER" value="false" />
   </component>
   <component name="ProjectKey">
     <option name="state" value="project://e2804f05-5315-4fc6-a121-c522a6c26470" />
