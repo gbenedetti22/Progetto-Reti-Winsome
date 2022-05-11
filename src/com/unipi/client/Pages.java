@@ -2,6 +2,11 @@ package com.unipi.client;
 
 import com.unipi.client.UI.pages.*;
 
+/*
+    Classe che racchiude tutte le pagine.
+    Per motivi di performance e correttezza, le pagine vengono riusate.
+    L unica classe che viene creata ogni volta è quella che serve a visualizzare un Post (per via dei like e dei commenti)
+ */
 public class Pages {
     public static final LoginPage LOGIN_PAGE = new LoginPage();
     public static final RegisterPage REGISTER_PAGE = new RegisterPage();

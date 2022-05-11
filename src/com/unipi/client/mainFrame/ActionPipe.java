@@ -1,9 +1,12 @@
 package com.unipi.client.mainFrame;
 
 public class ActionPipe {
+    // Oggetto usato per l attesa
+    // è possibile usare anche le condition variables
     private static final Object key = new Object();
-    private static Object obj;
-    private static ACTIONS currentAction;
+    private static Object attach; // oggetto usato per far comunicare chi chiama la performAction()
+    // e chi è in attesa sulla waitForAction()
+    private static ACTIONS currentAction; // Azione corrente da compiere. Viene modificata con la performAction()
     private static boolean closed = false;
 
     public static ACTIONS waitForAction() {
@@ -25,7 +28,7 @@ public class ActionPipe {
     }
 
     public static Object getParameter() {
-        return obj;
+        return attach;
     }
 
     public static void performAction(ACTIONS action, Object param) {
@@ -34,7 +37,7 @@ public class ActionPipe {
             key.notify();
         }
 
-        obj = param;
+        attach = param;
     }
 
     public static void performAction(ACTIONS action) {
@@ -49,7 +52,4 @@ public class ActionPipe {
         }
     }
 
-    public static boolean isClosed() {
-        return closed;
-    }
 }

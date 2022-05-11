@@ -11,8 +11,10 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Predicate;
 
 public class HomePage extends JPanel {
@@ -133,13 +135,13 @@ public class HomePage extends JPanel {
     public void removePostIf(Predicate<PostBanner> predicate) {
         PostBanner b = null;
         for (PostBanner banner : banners) {
-            if(predicate.test(banner)){
+            if (predicate.test(banner)) {
                 b = banner;
                 gridPanel.remove(b);
             }
         }
 
-        if(b == null) return;
+        if (b == null) return;
 
         banners.removeIf(predicate);
         gridPanel.revalidate();

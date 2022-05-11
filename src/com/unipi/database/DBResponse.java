@@ -12,9 +12,9 @@ import java.io.Serializable;
     - message -> lista dei tag con cui si è registrato
  */
 public class DBResponse implements Serializable {
+    public static final String OK = "200";
     private String code;
     private Object message;
-    public static final String OK = "200";
 
     public DBResponse(String code, Object message) {
         this.code = code;

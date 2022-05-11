@@ -30,7 +30,6 @@ public class RegisterPage extends JPanel {
     private PasswordField repeatPassword;
     private ArrayList<TextInputField> tags;
     private RegistrationService service;
-    private Registry registry;
 
     public RegisterPage() {
         super(new BorderLayout());
@@ -52,7 +51,7 @@ public class RegisterPage extends JPanel {
 
         HashMap<ClientProperties.NAMES, Object> props = ClientProperties.getValues();
         try {
-            registry = LocateRegistry.getRegistry((String) props.get(RMI_ADDRESS), (int) props.get(RMI_REG_PORT));
+            Registry registry = LocateRegistry.getRegistry((String) props.get(RMI_ADDRESS), (int) props.get(RMI_REG_PORT));
             this.service = (RegistrationService) registry.lookup("REGISTER-SERVICE");
         } catch (RemoteException | NotBoundException e) {
             e.printStackTrace();
@@ -104,13 +103,15 @@ public class RegisterPage extends JPanel {
         return formPanel;
     }
 
+    // metodo per eseguire la registrazione tramite RMUìI
+    // i campi vengono controllati lato client e lato Server
     private void registerAction() {
         try {
             String username = usernameField.getText();
             String password1 = passwordField.getPlainTextPassword();
             String password2 = repeatPassword.getPlainTextPassword();
 
-            if(username.contains(" ")) {
+            if (username.contains(" ")) {
                 MainFrame.showErrorMessage("Username non valido. Non può contenere spazi.");
                 return;
             }

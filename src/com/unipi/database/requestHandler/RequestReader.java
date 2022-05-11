@@ -7,11 +7,11 @@ import com.unipi.common.Console;
 import com.unipi.common.SimpleComment;
 import com.unipi.database.Database;
 import com.unipi.database.DatabaseMain;
-import com.unipi.database.utility.EntriesStorage;
 import com.unipi.database.graph.graphNodes.Node;
 import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Post;
 import com.unipi.database.tables.User;
+import com.unipi.database.utility.EntriesStorage;
 import com.unipi.utility.ThreadWorker;
 import com.unipi.utility.channelsio.ConcurrentChannelLineReceiver;
 import com.unipi.utility.channelsio.PipedSelector;
@@ -87,11 +87,15 @@ public class RequestReader implements Runnable {
             case "UNFOLLOW" -> unfollowUser(record[1]);
             case "CREATE POST" -> publishPost(record[1]);
             case "GET POST" -> getPost(record[1]); // Vedere un Post
-            case "OPEN REWIN" -> getRewin(record[1]); // Se il post che voglio vedere è un Rewin, allora viene invocata questa per un maggior controllo
+            case "OPEN REWIN" ->
+                    getRewin(record[1]); // Se il post che voglio vedere è un Rewin, allora viene invocata questa per un maggior controllo
             case "GET ALL POSTS OF" -> getAllPostsOf(record[1]); // Reperire tutti i Post di un utente
-            case "GET FRIENDS POSTS OF" -> getAllFriendsPosts(record[1]); // Reperire tutti i Post di tutti i follow di un utente (in pratica i Post che stanno nella Home)
-            case "GET FRIENDS POST FROM DATE" -> getLatestFriendsPostsOf(record[1]); // Reperire tutti i Post di tutti i follow di un utente usando la dateMap
-            case "GET COMMENTS FROM DATE" -> getLatestComments(record[1]); // Reperire tutti i commenti fatti dopo una certa data
+            case "GET FRIENDS POSTS OF" ->
+                    getAllFriendsPosts(record[1]); // Reperire tutti i Post di tutti i follow di un utente (in pratica i Post che stanno nella Home)
+            case "GET FRIENDS POST FROM DATE" ->
+                    getLatestFriendsPostsOf(record[1]); // Reperire tutti i Post di tutti i follow di un utente usando la dateMap
+            case "GET COMMENTS FROM DATE" ->
+                    getLatestComments(record[1]); // Reperire tutti i commenti fatti dopo una certa data
             case "REWIN" -> rewin(record[1]);
             case "REMOVE REWIN" -> removeRewin(record[1]);
             case "COMMENT" -> addComment(record[1]);
@@ -291,7 +295,7 @@ public class RequestReader implements Runnable {
         Comment c;
         try {
             c = database.appendComment(UUID.fromString(idPost), author, content);
-        }catch (UnsupportedOperationException e) {
+        } catch (UnsupportedOperationException e) {
             response = new Packet(Packet.FUNCTION.COMMENT, "217"); //Post not found
             return;
         }

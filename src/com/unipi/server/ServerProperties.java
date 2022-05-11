@@ -72,7 +72,7 @@ public class ServerProperties {
                 case SOCK_TIMEOUT, PRINT_LOG -> map.put(v, 0);
                 case REWARD_TIME_DELAY -> map.put(v, "1d");
                 case AUTHOR_PERCENTAGE -> map.put(v, 70);
-                case CLOSE_DB -> map.put(v,"true");
+                case CLOSE_DB -> map.put(v, "true");
             }
         }
     }

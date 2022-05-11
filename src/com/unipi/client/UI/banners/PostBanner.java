@@ -11,7 +11,6 @@ import javax.swing.border.CompoundBorder;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.text.SimpleDateFormat;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -187,8 +186,8 @@ public class PostBanner extends JPanel implements Comparable<PostBanner> {
 
     @Override
     public int compareTo(PostBanner o) {
-        if(this == o) return 0;
-        if(this.hashCode() == o.hashCode()) return 0;
+        if (this == o) return 0;
+        if (this.hashCode() == o.hashCode()) return 0;
 
         return o.attached_post.compareTo(attached_post);
     }

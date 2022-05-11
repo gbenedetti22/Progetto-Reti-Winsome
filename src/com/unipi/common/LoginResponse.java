@@ -2,6 +2,10 @@ package com.unipi.common;
 
 import java.util.ArrayList;
 
+/*
+    Classe che viene usata come risposta al Login.
+    Contiene i tags dell utente e l indirizzo/porta di multicast
+ */
 public class LoginResponse {
     private ArrayList<String> tags;
     private String multicastAddress;

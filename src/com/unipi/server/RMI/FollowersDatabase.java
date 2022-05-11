@@ -3,6 +3,7 @@ package com.unipi.server.RMI;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Set;
+
 /*
     Vedi metodo ServerMain.register() per vedere come si viene registrati al servizio di follow
  */

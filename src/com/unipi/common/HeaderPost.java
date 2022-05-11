@@ -4,6 +4,12 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.UUID;
 
+/*
+    Classe che rappresenta l header di una entri.
+    Contiene tutte le informazioni di un Post, necessarie al calcolo delle ricompense (autore, curatori ecc)
+
+    Viene creata nell EntriesStorage e viene letta, dal Server, nel RewardCalculator
+ */
 public class HeaderPost implements Serializable {
     private UUID idPost;
     private String author;
@@ -33,7 +39,7 @@ public class HeaderPost implements Serializable {
         this.curatori.add(curator);
     }
 
-    public HashSet<String> getCuratori() {
+    public HashSet<String> getCurators() {
         return curatori;
     }
 

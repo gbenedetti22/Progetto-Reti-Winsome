@@ -12,6 +12,7 @@ public class Like implements Serializable {
     private final String username; //chi ha messo il like
     private TYPE type;
     private transient long linePosition;
+
     public Like(UUID idPost, TYPE type, String username) {
         this.idPost = idPost;
         this.type = type;

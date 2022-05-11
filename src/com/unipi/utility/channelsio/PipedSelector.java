@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.ConcurrentModificationException;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -22,7 +21,7 @@ import java.util.function.Consumer;
  * la chiave viene inserita dentro una queue e poi si procede con la scrittura di 1 byte su una {@link Pipe} registrata all interno del selettore.<br>
  * Quest ultima operazione farà svegliare il Main Thread dalla {@link Selector#select()} e solo allora la chiave verrà re-inserita.<br>
  * Il byte sulla Pipe scritto viene consumato.
- *
+ * <p>
  * Esempio d uso tipico:
  * <pre>
  * {@code
@@ -70,7 +69,7 @@ import java.util.function.Consumer;
  *     }
  * }
  * </pre>
- *
+ * <p>
  * Per rimettere il Socket dentro il Selector, usare {@link PipedSelector#enqueue(SelectableChannel, int)}
  */
 public class PipedSelector implements Closeable {
@@ -239,7 +238,7 @@ public class PipedSelector implements Closeable {
                     try {
                         channel.configureBlocking(false);
                         channel.register(selector, ops, attachment);
-                    }catch (ClosedChannelException e){
+                    } catch (ClosedChannelException e) {
                         channel.close();
                     }
                 } else {

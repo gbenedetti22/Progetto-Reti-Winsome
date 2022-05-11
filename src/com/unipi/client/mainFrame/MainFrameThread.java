@@ -33,19 +33,23 @@ import static com.unipi.client.mainFrame.MainFrame.showErrorMessage;
 import static com.unipi.client.mainFrame.MainFrame.showSuccessMessage;
 import static com.unipi.server.requestHandler.WSRequest.WS_OPERATIONS;
 
+/*
+    Classe che rappresenta il Thread principale del mainframe.
+    Qua vengono fatte la maggior parte delle richieste al Server (di cui molte in modo asincrono)
+ */
 public class MainFrameThread extends Thread {
-    private final MainFrame frame;
+    private final MainFrame frame; // riferimento al MainFrame per il cambio pagina
     private final Gson gson;
-    private FollowersService followersService;
+    private FollowersService followersService; // interfaccia per la registrazione al servizio di follow
     private LocalStorage storage;
-    private ServiceManager serviceManager;
+    private ServiceManager serviceManager; // richieste asincrone
     private HashSet<String> rewinnedPosts;
 
     public MainFrameThread(MainFrame frame) throws IOException, NotBoundException {
         this.frame = frame;
         this.storage = new LocalStorage();
         this.rewinnedPosts = new HashSet<>();
-        setName("Main-Frame-Thread");
+        setName("Main-Frame-Thread of" + frame.getName());
 
         HashMap<ClientProperties.NAMES, Object> props = ClientProperties.getValues();
         SocketChannel socket = SocketChannel.open(new InetSocketAddress((String) props.get(SERVER_ADDRESS), (int) props.get(DEFUALT_TCP_PORT)));
@@ -115,6 +119,10 @@ public class MainFrameThread extends Thread {
         }
     }
 
+    // Metodo per reperire i commenti più recenti di un Post.
+    // Questo metodo viene chiamto solo se l utente sta visualizzando un Post e clicca ripetutamente sull icona
+    // dei commenti. Nel momento in cui l utente torna nella home e poi ritorna sul Post, questo viene scaricato di nuovo
+    // causa mancanza di aggiornamento in real-time dei like
     private void performGetLatestComments() {
         if (frame.getCurrentPage() instanceof PostPage page) {
             CommentsPage commentsPage = (CommentsPage) ActionPipe.getParameter();
@@ -146,6 +154,8 @@ public class MainFrameThread extends Thread {
 
     }
 
+    // metodo per eseguire il rewin
+    // la richiesta è sincrona in quanto l utente deve ricevere subito una risposta
     private void performRewin() {
         if (frame.getCurrentPage() instanceof HomePage) {
             PostBanner banner = (PostBanner) ActionPipe.getParameter();
@@ -164,6 +174,27 @@ public class MainFrameThread extends Thread {
             b.setAsRewin(storage.getCurrentUsername());
             Pages.PROFILE_PAGE.addPost(b);
             showSuccessMessage("Post rewinnato!");
+        }
+    }
+
+    // metodo per mettere like/dislike
+    // la richiesta è sincrona in quanto l utente deve ricevere una risposta visuale (il +1)
+    private void performLike() {
+        if (frame.getCurrentPage() instanceof PostPage page) {
+            String id = page.getId();
+            WSRequest request = new WSRequest(WS_OPERATIONS.LIKE, id);
+            serviceManager.submitRequest(request);
+            WSResponse response = serviceManager.getResponse();
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
+
+            String bodyMessage = response.getBody();
+            if (bodyMessage.equals("CHANGED LIKE"))
+                page.setDislikeSetted(true);
+
+            page.addLike();
         }
     }
 
@@ -186,25 +217,8 @@ public class MainFrameThread extends Thread {
         }
     }
 
-    private void performLike() {
-        if (frame.getCurrentPage() instanceof PostPage page) {
-            String id = page.getId();
-            WSRequest request = new WSRequest(WS_OPERATIONS.LIKE, id);
-            serviceManager.submitRequest(request);
-            WSResponse response = serviceManager.getResponse();
-            if (response.code() != WSResponse.CODES.OK) {
-                showErrorMessage(response.getBody());
-                return;
-            }
-
-            String bodyMessage = response.getBody();
-            if (bodyMessage.equals("CHANGED LIKE"))
-                page.setDislikeSetted(true);
-
-            page.addLike();
-        }
-    }
-
+    // metodo per pubblicare un commento
+    // la richiesta è sincrona in quanto l utente deve poter vedere il commento appeso
     private void performPublishComment() {
         CommentsPage page = (CommentsPage) ActionPipe.getParameter();
         String id = page.getPost().getId();
@@ -230,6 +244,10 @@ public class MainFrameThread extends Thread {
         page.addComment(new CommentBanner(c.getId(), c.getAuthor(), c.getContent(), c.getDate()));
     }
 
+    // metodo per visualizzare un Post che sta nella home o nel profilo
+    // La richiesta è sincrona perchè, se l utente comincia a cliccare più post, il risultato potrebbe essere spiacevole
+    // (tipo quando si tenta di aprire Chrome più volte e questo, quando si decide ad aprirsi, apre un sacco di schede)
+    // se il post è un rewin, allora viene chiamato il metodo specifico
     private void performViewPost() {
         PostBanner banner = (PostBanner) ActionPipe.getParameter();
         if (banner.isRewin()) {
@@ -262,6 +280,8 @@ public class MainFrameThread extends Thread {
         frame.switchPage(page);
     }
 
+    // richiesta sincrona di apertura di un rewin
+    // è necessario un metodo a parte per controllare se il rewin esiste ancora oppure no
     private void performOpenRewin(PostBanner banner) {
         String id = banner.getID();
         String author = banner.getRewin();
@@ -272,7 +292,6 @@ public class MainFrameThread extends Thread {
         if (response.code() != WSResponse.CODES.OK) {
             showErrorMessage(response.getBody());
             Pages.HOME_PAGE.removePost(banner);
-//            Pages.HOME_PAGE.removePostIf(p -> p.getID().equals(id));
             return;
         }
 
@@ -289,31 +308,16 @@ public class MainFrameThread extends Thread {
         frame.switchPage(page);
     }
 
+    // questo è un semplice cambio perchè:
+    // 1) gli utenti che seguo vengono settati durante il login e poi localmente mano a mano che seguo altri utenti
+    // 2) i followers sono aggiornati dal Server tramite RMI (i quali vengono aggiunti anche nella UI)
     private void performViewFollowPage() {
-        FollowersPage page = Pages.FOLLOW_PAGE;
-        //la FollowersPage è suddivisa in 2 sezioni: i followers e i following
-
-//        for (String follow : storage.getFollowing()) {
-//            //questi vanno nella sezione a destra -> posso solo unfollow
-//            page.appendBanner(follow, FollowersPage.Type.FOLLOWING);
-//        }
-
-        //Questi vanno a sinistra
-//        for (String followers : storage.getFollowers()) {
-//            //se già sto seguendo questo utente.. -> metto unfollow
-//            if(storage.getFollowing().contains(followers)) {
-//                FollowersPage.PageBanner banner = page.newBanner(followers, FollowersPage.Type.FOLLOWING);
-//                page.addLeft(banner);
-//                continue;
-//            }
-//
-//            //..altrimenti metto possibilità di follow
-//            page.appendBanner(followers, FollowersPage.Type.FOLLOWER);
-//        }
-
-        frame.switchPage(page);
+        frame.switchPage(Pages.FOLLOW_PAGE);
     }
 
+    // Metodo per la cancellazione di un Post
+    // Se questo era un rewin, il post corrispondente nella home viene reso rewinnabile di nuovo
+    // Se si tenta di cancellare un rewin, verrà fatta una richiesta apposta
     private void performDeletePost() {
         if (frame.getCurrentPage() instanceof ProfilePage profile) {
             PostBanner clickedBanner = (PostBanner) ActionPipe.getParameter();
@@ -344,6 +348,17 @@ public class MainFrameThread extends Thread {
         }
     }
 
+    /*
+        NOTA: quando si guardano i metodi per il follow e la unfollow,
+        ci saranno dei metodi che conterranno dei nomi del tipo "left" o "right".
+        Questo perchè la UI è organizzata in questo modo:
+            followers | following
+            ----------------------
+         A destra i following e a sinistra i followers
+     */
+
+    // operazione per eseguire un follow
+    // L utente, se "followato" viene aggiunto alla pagina dei follow
     private void performFollow() {
         if (frame.getCurrentPage() instanceof DiscoverPage) {
             UserBanner clickedBanner = (UserBanner) ActionPipe.getParameter();
@@ -359,7 +374,31 @@ public class MainFrameThread extends Thread {
             clickedBanner.setUnfollow();
             downloadPostsOf(username);
             storage.getFollowing().add(username);
-            Pages.FOLLOW_PAGE.appendBanner(username, FollowersPage.Type.FOLLOWING);
+            FollowersPage page = Pages.FOLLOW_PAGE;
+            // Se l utente che voglio seguire è a sua volta un mio followers,
+            // allora vado nella lista dei followers e cambio l azione da "follow" a "unfollow"
+            // es.
+            /*
+                followers         | following
+               ----------------------------------------
+                utenteA <follow>  |
+                utenteB <follow>  |
+                utenteC <follow>  |
+
+                Se l utente clicca su "follow" dell utenteA, la schermata deve diventare così:
+                followers         | following
+               ----------------------------------------
+                utenteA <unfollow>| utenteA <unfollow>
+                utenteB <follow>  |
+                utenteC <follow>  |
+
+                Quindi devo prendere il banner da sinistra e cambiarlo in "unfollow"
+             */
+
+            FollowersPage.PageBanner banner = page.getFromLeft(username);
+            if (banner != null)
+                banner.doUnfollow();
+            page.appendBanner(username, FollowersPage.Type.FOLLOWING);
             return;
         }
 
@@ -397,7 +436,7 @@ public class MainFrameThread extends Thread {
 
             clickedBanner.setFollow();
             HomePage home = Pages.HOME_PAGE;
-            home.removePostIf(p -> p.getAuthor().equals(username));
+            home.removePostIf(p -> p.getAuthor().equals(username)); // rimuove tutti i post che soddisfano quella condizione
             storage.getFollowing().remove(username);
             Pages.FOLLOW_PAGE.removeFromRight(username);
             if (!home.containsPosts()) {
@@ -431,7 +470,7 @@ public class MainFrameThread extends Thread {
         }
     }
 
-
+    // se non ci sono post nel profilo, viene fatto un ulteriore tentativo
     private void performViewProfile() {
         frame.switchPage(Pages.PROFILE_PAGE);
 
@@ -448,51 +487,57 @@ public class MainFrameThread extends Thread {
     }
 
     private void performLoginActon() {
-        if (frame.getCurrentPage() instanceof LoginPage page) {
+        if (frame.getCurrentPage() instanceof LoginPage page) { // Se si è nella login page...
             String username = page.getUsername();
             String password = page.getPassword();
 
             boolean logged = executeLogin(username, password);
             if (logged) {
-
-                frame.switchPage(Pages.HOME_PAGE);
+                frame.switchPage(Pages.HOME_PAGE); // cambio pagina
                 frame.setTitle(frame.getTitle() + " @logged as " + username);
-                setMyFollowing();
-                registerToFollowersService(username);
-                downloadMyPosts();
-                downloadPosts();
-                downloadTransactions();
+                setMyFollowing();   // Richiedo e setto i miei follow
+                registerToFollowersService(username); // mi registro al servizio di follow e ricevo i miei followers tramite RMI
+                downloadMyPosts(); // scarico i post pubblicati da me
+                downloadPosts(); // scarico la mia home
+                downloadTransactions(); // scarico le mie transazioni (rewards)
             }
         }
     }
 
+    // metodo per visualizzare gli utenti che hanno in comune almeno un tag
+    // la richiesta è ovviamente asincrona in quanto se gli utenti non vengono visualizzati (causa magari connessione lenta)
+    // l utente deve essere comunque in grado di poter tornare nella home
     private void performDiscover() {
         WSRequest request = new WSRequest(WS_OPERATIONS.GET_FRIENDS_BY_TAG);
-        serviceManager.submitRequest(request);
+        serviceManager.submitRequest(request, response -> {
+            if(!(frame.getCurrentPage() instanceof DiscoverPage)) return;
 
-        WSResponse response = serviceManager.getResponse();
-        if (response.code() != WSResponse.CODES.OK) {
-            showErrorMessage(response.getBody());
-            return;
-        }
+            if (response.code() != WSResponse.CODES.OK) {
+                showErrorMessage(response.getBody());
+                return;
+            }
 
-        Type type = new TypeToken<ArrayList<String>>() {
-        }.getType();
-        ArrayList<String> friends = gson.fromJson(response.getBody(), type);
-        Console.log("Discover", friends);
+            Type type = new TypeToken<ArrayList<String>>() {
+            }.getType();
+            ArrayList<String> friends = gson.fromJson(response.getBody(), type);
+            Console.log("Discover", friends);
 
-        ArrayList<UserBanner> banners = new ArrayList<>();
-        ArrayList<String> following = storage.getFollowing();
+            // Converto la lista di utenti in una lista di Banners
+            // A quel punto, la aggiungo alla DiscoverPage
+            ArrayList<UserBanner> banners = new ArrayList<>();
+            ArrayList<String> following = storage.getFollowing();
 
-        for (String s : friends) {
-            UserBanner banner = new UserBanner(s);
-            if (following.contains(s))
-                banner.setUnfollow();
+            for (String s : friends) {
+                UserBanner banner = new UserBanner(s);
+                if (following.contains(s))
+                    banner.setUnfollow();
 
-            banners.add(banner);
-        }
+                banners.add(banner);
+            }
 
-        Pages.DISCOVER_PAGE.addAll(banners);
+            Pages.DISCOVER_PAGE.addAll(banners);
+        });
+
         frame.switchPage(Pages.DISCOVER_PAGE);
     }
 
@@ -500,7 +545,7 @@ public class MainFrameThread extends Thread {
         try {
             boolean reg = followersService.register(username, storage);
             if (!reg) {
-                showErrorMessage("Impossibile registrarsi al servizio di follow");
+                showErrorMessage("Impossibile ricevere i followers a causa di un errore interno. Provare a riavviare l app");
                 System.exit(0);
             }
         } catch (RemoteException e) {
@@ -508,6 +553,9 @@ public class MainFrameThread extends Thread {
         }
     }
 
+    // Metodo per pubblicare un post
+    // Questo viene fatto in modo sincrono perchè l utente deve sapere subito
+    // se l operazione è andata a buon fine oppure no
     private void performPublishPost() {
         if (frame.getCurrentPage() instanceof ProfilePage page) {
             String title = page.getNewPostTitle();
@@ -520,7 +568,7 @@ public class MainFrameThread extends Thread {
 
             WSRequest request = new WSRequest(WS_OPERATIONS.CREATE_POST, title, content);
             serviceManager.submitRequest(request);
-            WSResponse response = serviceManager.getResponse();
+            WSResponse response = serviceManager.getResponse(); // attendo una risposta
             if (response.code() != WSResponse.CODES.OK) {
                 showErrorMessage(response.getBody());
                 return;
@@ -530,14 +578,19 @@ public class MainFrameThread extends Thread {
             SimplePost post = gson.fromJson(json, SimplePost.class);
             Console.log("Creato Post con ID: " + post.getId());
 
-            page.addPost(new PostBanner(post, true));
+            page.addPost(new PostBanner(post, true)); // cancellabile perchè è un post che va nel profilo
             showSuccessMessage("Post creato con successo!");
         }
     }
 
+    // la fase di logout non è altro che una grossa pulitura di tutto
     private void performLogout() {
         try {
-            followersService.unregister(storage.getCurrentUsername());
+            boolean unregistered = followersService.unregister(storage.getCurrentUsername());
+            if(!unregistered) {
+                showErrorMessage("C'è stato un errore interno, riprovare ad aprire l applicazione");
+                System.exit(0);
+            }
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -554,6 +607,9 @@ public class MainFrameThread extends Thread {
         frame.switchPage(Pages.LOGIN_PAGE);
     }
 
+    // Metodo per la fase di login
+    // Restituisce true se avviene il login
+    // E' qua che ricevo le informazioni sul multicast e i tags
     private boolean executeLogin(String username, String password) {
         if (username.isBlank() || password.isBlank()) {
             showErrorMessage("I campi username e password non possono essere vuoti");
@@ -598,9 +654,11 @@ public class MainFrameThread extends Thread {
         }.getType();
         LinkedList<WinsomeTransaction> transactions = gson.fromJson(response.getBody(), type);
         Pages.PROFILE_PAGE.setTransactions(transactions);
-//        Pages.PROFILE_PAGE.setWinsomeCoins(transactions.isEmpty() ? "0" : transactions.getLast().getCoins());
     }
 
+    // Metodo per settare i follow
+    // La richiesta è sincrona perchè poi il download dei post si basa tutto su, appunto, i follow
+    // Quindi, nel momento in cui voglio vedere i post della gente che seguo, questi devo averli tutti
     private void setMyFollowing() {
         WSRequest request = new WSRequest(WS_OPERATIONS.GET_FOLLOWING);
         serviceManager.submitRequest(request);
@@ -620,6 +678,8 @@ public class MainFrameThread extends Thread {
         }
     }
 
+    // metodi per il download dei post che vanno nella home e nel profilo
+    // entrambe le richieste sono asincrone
     private void downloadPosts() {
         WSRequest request = new WSRequest(WS_OPERATIONS.GET_FRIENDS_POSTS);
         serviceManager.submitRequest(request, response -> {
@@ -707,6 +767,8 @@ public class MainFrameThread extends Thread {
         });
     }
 
+    // metodo per scaricare tutti i post di un utente
+    // viene chiamato nel momento in cui comincio a seguire un nuovo utente
     private void downloadPostsOf(String username) {
         HashMap<String, String> dateMap = new HashMap<>();
         dateMap.put(username, "0");
@@ -744,6 +806,11 @@ public class MainFrameThread extends Thread {
         });
     }
 
+    // metodo per la costruzione della dateMap
+    // Il procedimento è il seguente:
+    // di base, voglio tutti post di tutti gli utenti (per questo il primo for dove metto 0)
+    // ciclo sui post nella home e aggiorno lo 0 con la data dell ultimo post ricevuto da quell utente specifico
+    // future implementazioni, possono migliorare anche la ricezione dei rewin
     private HashMap<String, String> getDateMap() {
         Set<PostBanner> banners = Pages.HOME_PAGE.getBanners();
         HashMap<String, String> dateMap = new HashMap<>();
@@ -765,7 +832,7 @@ public class MainFrameThread extends Thread {
             if (p.isRewin()) continue;
 
             String previousDate = dateMap.get(p.getAuthor());
-            if(previousDate.equals("0")) {
+            if (previousDate.equals("0")) {
                 dateMap.put(p.getAuthor(), p.getDate());
                 continue;
             }

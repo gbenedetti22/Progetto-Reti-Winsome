@@ -6,13 +6,13 @@ import com.unipi.common.SimplePost;
 import com.unipi.database.DBResponse;
 import com.unipi.database.Database;
 import com.unipi.database.DatabaseMain;
-import com.unipi.database.utility.EntriesStorage;
 import com.unipi.database.graph.graphNodes.GraphNode;
 import com.unipi.database.graph.graphNodes.GroupNode;
 import com.unipi.database.graph.graphNodes.Node;
 import com.unipi.database.tables.Comment;
 import com.unipi.database.tables.Like;
 import com.unipi.database.tables.Post;
+import com.unipi.database.utility.EntriesStorage;
 import com.unipi.utility.ThreadWorker;
 import com.unipi.utility.channelsio.ChannelLineSender;
 import com.unipi.utility.channelsio.PipedSelector;
@@ -438,7 +438,7 @@ public class RequestWriter implements Runnable {
             return;
         }
 
-        if(packet.getMessage() instanceof Comment c) {
+        if (packet.getMessage() instanceof Comment c) {
             try {
                 out.sendObject(new DBResponse("200", c.toSimpleComment()));
             } catch (IOException e) {
@@ -515,7 +515,7 @@ public class RequestWriter implements Runnable {
     private void updateUser() {
         if (packet.getMessage() instanceof String message) {
             try {
-                if(message.equals("200"))
+                if (message.equals("200"))
                     out.sendObject(new DBResponse("200"));
                 else
                     out.sendObject(new DBResponse("214", message));

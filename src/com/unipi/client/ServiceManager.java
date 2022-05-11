@@ -12,7 +12,17 @@ import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
+/*
+    Classe che permette di eseguire richieste asincrone
+    Vengono utilizzate 2 blocking queue
+    1) requestsQueue -> queue per le richieste
+    2) responses queue -> queue per le risposte
 
+    Questa è una classe semplicistica e non adatta per un uso generico.
+    Di fatto, quando si vuole fare una richiesta sincrona, il thread che fa la richiesta si mette in ascolto subito
+    sulla response queue (produttore-consumatore). E' stata usata questa tecnica per integrare un argomento del corso
+    ma in casi reali è bene affidarsi a librerie esterne molto più performanti.
+ */
 public class ServiceManager extends Thread {
     private LinkedBlockingQueue<Pair> requestsQueue;
     private LinkedBlockingQueue<WSResponse> responsesQueue;
@@ -39,6 +49,8 @@ public class ServiceManager extends Thread {
         requestsQueue.add(new Pair(request));
     }
 
+    // Il parametro callback verrà invocato, con il suo relativo metodo .accept(), quando questo Thread
+    // ha ottenuto una risposta
     public void submitRequest(WSRequest request, Consumer<WSResponse> callback) {
         requestsQueue.add(new Pair(request, callback));
     }
@@ -61,7 +73,7 @@ public class ServiceManager extends Thread {
                 String json = gson.toJson(request);
                 try {
                     out.sendLine(json);
-                }catch (IOException e){
+                } catch (IOException e) {
                     MainFrame.showErrorMessage("Connessione con il Server persa. Riprovare più tardi.");
                     System.exit(0);
                 }

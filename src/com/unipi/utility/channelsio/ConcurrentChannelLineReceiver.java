@@ -21,7 +21,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * <br>
  * Questa classe è null-safe.
  */
-public class ConcurrentChannelLineReceiver implements ChannelReceiver{
+public class ConcurrentChannelLineReceiver implements ChannelReceiver {
     private final String SEPARATOR = System.lineSeparator();
     private SocketChannel channel;
     private StringBuilder builder;
@@ -40,6 +40,7 @@ public class ConcurrentChannelLineReceiver implements ChannelReceiver{
     /**
      * Vedi {@link ChannelLineReceiver#receiveLine()}<br>
      * <br>
+     *
      * @return la stringa inviata mediante {@link ChannelLineSender#sendLine(String)} o null se EOF viene raggiunto
      * @throws IOException se avviene un errore di I/O
      */
@@ -106,8 +107,9 @@ public class ConcurrentChannelLineReceiver implements ChannelReceiver{
     /**
      * Vedi {@link ChannelLineReceiver#receiveInteger()}<br>
      * <br>
+     *
      * @return l intero inviato da {@link ChannelLineSender#sendInteger(int)}
-     * @throws IOException se avviene un errore di I/O
+     * @throws IOException           se avviene un errore di I/O
      * @throws NumberFormatException se l intero ricevuto non è un intero
      */
     public int receiveInteger() throws IOException, NumberFormatException {
@@ -130,6 +132,7 @@ public class ConcurrentChannelLineReceiver implements ChannelReceiver{
     /**
      * Vedi {@link ChannelLineReceiver#receiveObject()}<br>
      * <br>
+     *
      * @return l oggetto inviato da {@link ChannelLineSender#sendObject(Object)}
      * @throws IOException se avviene un errore di I/O
      */
@@ -160,6 +163,7 @@ public class ConcurrentChannelLineReceiver implements ChannelReceiver{
     /**
      * Questo metodo permette di cambiare canale d ascolto <br>
      * <br>
+     *
      * @param channel il canale su cui ascoltare
      */
     public void setChannel(SocketChannel channel) {

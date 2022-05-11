@@ -18,7 +18,6 @@ import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.UUID;
 
 /*
@@ -159,7 +158,7 @@ public class GraphLoader {
             String newEntryLabel;
             try {
                 newEntryLabel = splittedRecord[1];
-            }catch (ArrayIndexOutOfBoundsException e) {
+            } catch (ArrayIndexOutOfBoundsException e) {
                 newEntryLabel = "";
             }
 
@@ -203,7 +202,7 @@ public class GraphLoader {
             String newEntryLabel;
             try {
                 newEntryLabel = splittedRecord[1];
-            }catch (ArrayIndexOutOfBoundsException e) {
+            } catch (ArrayIndexOutOfBoundsException e) {
                 newEntryLabel = "";
             }
 
@@ -250,7 +249,8 @@ public class GraphLoader {
             RandomAccessFile in = new RandomAccessFile(f, "rw");
             String line;
             while ((line = in.readLine()) != null) {
-                if (line.startsWith("#")) continue; // questo raramente è vero, ma con un implementazione più efficiente, potrebbe essere utile
+                if (line.startsWith("#"))
+                    continue; // questo raramente è vero, ma con un implementazione più efficiente, potrebbe essere utile
 
                 String[] record = line.split(";", 2);
                 String username = record[0];

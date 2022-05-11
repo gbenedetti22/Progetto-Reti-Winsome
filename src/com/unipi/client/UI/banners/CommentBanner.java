@@ -20,8 +20,8 @@ public class CommentBanner extends PostBanner {
 
     @Override
     public int compareTo(PostBanner o) {
-        if(!(o instanceof CommentBanner c)) return 0;
-        if(id.equals(c.getID())) return 0;
+        if (!(o instanceof CommentBanner c)) return 0;
+        if (id.equals(c.getID())) return 0;
 
         SimpleDateFormat format = new SimpleDateFormat("dd/MM/yy - HH:mm:ss");
         try {

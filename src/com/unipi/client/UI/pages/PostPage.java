@@ -162,7 +162,7 @@ public class PostPage extends JPanel {
         LinkLabel comments = new LinkLabel("", SwingConstants.RIGHT);
         comments.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 15));
         comments.setIcon(getCommentIcon());
-        comments.setOnMouseClick(()-> ActionPipe.performAction(ACTIONS.GET_LATEST_COMMENTS, commentsPage));
+        comments.setOnMouseClick(() -> ActionPipe.performAction(ACTIONS.GET_LATEST_COMMENTS, commentsPage));
 
         likeDislikePanel.add(like);
         likeDislikePanel.add(labelLike);
@@ -230,7 +230,7 @@ public class PostPage extends JPanel {
     }
 
     public void addLike() {
-        if(dislikeSetted) {
+        if (dislikeSetted) {
             numDislike--;
             labelDislike.setText(String.valueOf(numDislike));
             dislikeSetted = false;
@@ -242,7 +242,7 @@ public class PostPage extends JPanel {
     }
 
     public void addDislike() {
-        if(likeSetted) {
+        if (likeSetted) {
             numLike--;
             labelLike.setText(String.valueOf(numLike));
             likeSetted = false;

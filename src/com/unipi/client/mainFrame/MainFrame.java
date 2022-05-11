@@ -4,16 +4,20 @@ import com.unipi.client.Pages;
 import com.unipi.client.UI.pages.LoginPage;
 
 import javax.swing.*;
-import javax.swing.plaf.basic.BasicProgressBarUI;
 import java.awt.*;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 
+/*
+    Classe che rappresenta il punto di interscambio tra le pagine.
+    Si può pensare a questo oggetto come ad una activity nella programmazione Android (mentre i pannelli sono i Fragment)
+    Per più informazioni, vedere la relazione
+ */
 public class MainFrame extends JFrame {
     private MainFrameThread mainThread;
     private JPanel currentPage; //la prima pagina è il Login (vedi costruttore)
-    private JPanel previousPage;
-    private boolean progressBarOn = false;
+    private JPanel previousPage;    // corrisponde alla pagina precedente.
+    // Se l utente va dalla Home al Profilo, la pagina precedente sarà la Home
 
     public MainFrame() {
         try {
@@ -52,6 +56,8 @@ public class MainFrame extends JFrame {
     }
 
 
+    // Metodo per cambiare pagina. Viene tenuto traccia della pagina precedente nel caso in cui l utente decidesse
+    // di tornare indietro
     public synchronized void switchPage(JPanel page) {
         setMaximized(!(page instanceof LoginPage));
 
@@ -76,10 +82,6 @@ public class MainFrame extends JFrame {
             setLocationRelativeTo(null);
             setExtendedState(getExtendedState() | JFrame.NORMAL);
         }
-    }
-
-    public JPanel getPreviousPage() {
-        return previousPage;
     }
 
     public void goBack() {

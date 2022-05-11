@@ -10,6 +10,7 @@ import java.io.Serializable;
 public class WSResponse implements Serializable {
     private CODES status;
     private String body = "NONE";
+
     public WSResponse() {
     }
 
@@ -49,16 +50,16 @@ public class WSResponse implements Serializable {
         this.body = body;
     }
 
-    public enum CODES {
-        OK,
-        ERROR
-    }
-
     @Override
     public String toString() {
         return "WSResponse{" +
                 "status=" + status +
                 ", body='" + body + '\'' +
                 '}';
+    }
+
+    public enum CODES {
+        OK,
+        ERROR
     }
 }

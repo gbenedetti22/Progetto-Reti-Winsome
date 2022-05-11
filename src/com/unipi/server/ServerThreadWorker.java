@@ -39,14 +39,15 @@ public class ServerThreadWorker extends ThreadWorker {
         System.out.println("Interrotto Thread: " + getName());
         String value = (String) ServerProperties.getValue(CLOSE_DB);
         boolean close_db = Boolean.parseBoolean(value);
-        if(!close_db) return;
+        if (!close_db) return;
 
         try {
             ChannelLineSender out = new ChannelLineSender(socket);
             try {
                 System.out.println("Chiusura Database..");
                 out.sendLine("CLOSE");
-            } catch (IOException ignored){}
+            } catch (IOException ignored) {
+            }
             socket.close();
         } catch (IOException e) {
             e.printStackTrace();

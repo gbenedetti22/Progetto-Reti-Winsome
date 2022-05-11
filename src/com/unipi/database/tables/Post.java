@@ -4,7 +4,6 @@ import com.unipi.common.SimplePost;
 import com.unipi.database.graph.graphNodes.GroupNode;
 
 import java.io.Serializable;
-import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -21,6 +20,7 @@ public class Post implements Comparable<Post>, Serializable {
     private transient GroupNode comments;
     private transient GroupNode likes;
     private transient long linePosition;
+
     public Post(String author, String title, String content) {
         this.author = author;
         this.title = title;

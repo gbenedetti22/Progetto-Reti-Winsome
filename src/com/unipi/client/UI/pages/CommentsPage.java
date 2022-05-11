@@ -42,7 +42,7 @@ public class CommentsPage extends JFrame {
     }
 
     public void addComment(CommentBanner banner) {
-        if(comments.contains(banner)) return;
+        if (comments.contains(banner)) return;
 
         rootPanel.placeComponent(banner);
         comments.add(banner);
@@ -53,7 +53,7 @@ public class CommentsPage extends JFrame {
     }
 
     public void addAll(Set<SimpleComment> set) {
-        if(set.isEmpty()) return;
+        if (set.isEmpty()) return;
 
         for (SimpleComment c : set) {
             comments.add(new CommentBanner(c.getId(), c.getAuthor(), c.getContent(), c.getDate()));

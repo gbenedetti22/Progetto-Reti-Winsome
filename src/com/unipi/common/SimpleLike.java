@@ -4,6 +4,9 @@ import com.unipi.database.tables.Like;
 
 import java.io.Serializable;
 
+/*
+    Versione ridotta della classe Like del DB
+ */
 public class SimpleLike implements Serializable {
     private Like.TYPE type;
 

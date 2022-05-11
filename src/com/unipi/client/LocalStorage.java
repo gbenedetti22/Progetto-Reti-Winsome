@@ -10,6 +10,11 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Set;
 
+/*
+    Classe che gestisce i dati dell applicazione.
+    Più nello specifico, vengono tenuti i followers (RMI), i following e lo username su cui l utente si è loggato
+    Implementa Serializable per via dell RMI
+ */
 public class LocalStorage extends UnicastRemoteObject implements FollowersDatabase, Serializable {
     private ArrayList<String> followers;
     private ArrayList<String> following;
@@ -28,7 +33,7 @@ public class LocalStorage extends UnicastRemoteObject implements FollowersDataba
         System.out.println("Follower: " + username + " aggiuto con successo!");
 
         FollowersPage page = Pages.FOLLOW_PAGE;
-        if(following.contains(username)) {
+        if (following.contains(username)) {
             FollowersPage.PageBanner banner = page.newBanner(username, FollowersPage.Type.FOLLOWING);
             page.addLeft(banner);
             return;

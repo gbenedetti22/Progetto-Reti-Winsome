@@ -244,7 +244,7 @@ public class Database implements WinsomeDatabase, Closeable {
             p.setCommentsGroupNode(comments);
             p.setLikesGroupNode(likes);
 
-            if(saver != null)
+            if (saver != null)
                 saver.asyncSave(() -> graphSaver.savePost(p), StandardPriority.VERY_HIGH);
             return p;
         } catch (NullPointerException e) {
@@ -406,14 +406,14 @@ public class Database implements WinsomeDatabase, Closeable {
                 Date d;
                 try {
                     d = format.parse(date);
-                }catch (ParseException e) {
+                } catch (ParseException e) {
                     return null;
                 }
 
                 for (Node n : graph.adjacentNodes(friend.getPostsGroupNode())) {
                     if (n instanceof GraphNode<?> g && g.getValue() instanceof UUID id) {
                         Post p = tablePosts.get(id);
-                        if(!p.getAuthor().equals(follow) || p.date().toDate().after(d)) {
+                        if (!p.getAuthor().equals(follow) || p.date().toDate().after(d)) {
                             result.putIfAbsent(follow, new HashSet<>());
                             result.get(follow).add(n);
                         }
@@ -448,7 +448,7 @@ public class Database implements WinsomeDatabase, Closeable {
             GraphNode<UUID> rewinNode = new GraphNode<>(idPost);
             graph.putEdge(posts, rewinNode);
 
-            if(saver != null)
+            if (saver != null)
                 saver.asyncSave(() -> graphSaver.saveRewin(u, idPost), StandardPriority.HIGH);
 
             return "200";
@@ -470,7 +470,7 @@ public class Database implements WinsomeDatabase, Closeable {
 
             graph.removeEdge(posts, rewinNode);
 
-            if(saver != null)
+            if (saver != null)
                 saver.asyncSave(() -> graphSaver.removeRewinFromFile(username, idPost), StandardPriority.LOW);
             return "200";
         }
@@ -577,7 +577,7 @@ public class Database implements WinsomeDatabase, Closeable {
                         }
 
                         l.setType(type);
-                        if(saver != null)
+                        if (saver != null)
                             saver.asyncSave(() -> graphSaver.saveLike(username, l), StandardPriority.NORMAL);
                         return "0"; //like cambiato
                     } else if (l.getType() == type)
@@ -600,7 +600,7 @@ public class Database implements WinsomeDatabase, Closeable {
 
         graph.putEdge(likesGroup, likeNode);
         entries.add(like);
-        if(saver != null)
+        if (saver != null)
             saver.asyncSave(() -> graphSaver.saveLike(post.getAuthor(), like), StandardPriority.NORMAL);
         return "200";
     }
@@ -637,7 +637,7 @@ public class Database implements WinsomeDatabase, Closeable {
             }
 
             entries.remove(p.getId());
-            if(saver != null)
+            if (saver != null)
                 saver.asyncSave(() -> graphSaver.removePost(p, commentsSet, likesSet), StandardPriority.LOW);
             graph.removeNode(commentsGroup);
             graph.removeNode(likesGroup);

@@ -5,8 +5,13 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+/*
+    Classe che rappresenta una transazione.
+    Quando vengono calcolate le ricompense, viene creata una nuova WinsomeTransaction che conterrà i coins e la data
+    di quando è stato effettuato il calcolo delle ricompense
+ */
 public class WinsomeTransaction implements Comparable<WinsomeTransaction>, Serializable {
-    private String coins;
+    private String coins; // viene usato il tipo string perchè più facile da gestire con i socket
     private String date;
 
     public WinsomeTransaction(String coins, String date) {

@@ -123,7 +123,7 @@ public class DatabaseMain {
             for (Map.Entry<Object, Object> entry : prop.entrySet()) {
                 switch (entry.getKey().toString().toLowerCase()) {
                     case "clear" -> {
-                        if(entry.getValue().toString().equals("true")) {
+                        if (entry.getValue().toString().equals("true")) {
                             clearDatabase();
                         }
                     }

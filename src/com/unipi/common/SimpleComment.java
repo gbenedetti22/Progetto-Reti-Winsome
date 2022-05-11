@@ -4,7 +4,9 @@ import java.io.Serializable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-
+/*
+    Versione ridotta della classe Comment del DB
+ */
 public class SimpleComment implements Comparable<SimpleComment>, Serializable {
     private final String id;
     private final String author;

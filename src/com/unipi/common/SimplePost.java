@@ -6,6 +6,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Objects;
 
+/*
+    Versione ridotta della classe Post del DB
+ */
 public class SimplePost implements Comparable<SimplePost>, Serializable {
     private String id;
     private String author;

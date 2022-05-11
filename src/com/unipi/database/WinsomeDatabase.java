@@ -28,6 +28,7 @@ public interface WinsomeDatabase {
     Post createPost(String author, String title, String content);
 
     HashMap<String, Object> viewFriendPost(String author, UUID idPost);
+
     HashMap<String, Object> openRewin(String author, UUID idPost);
 
     Set<Node> getAllPostsOf(String username);

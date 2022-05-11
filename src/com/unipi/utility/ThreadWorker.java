@@ -1,8 +1,8 @@
 package com.unipi.utility;
 
 import com.unipi.utility.channelsio.ChannelLineSender;
-import com.unipi.utility.channelsio.ConcurrentChannelLineReceiver;
 import com.unipi.utility.channelsio.ChannelReceiver;
+import com.unipi.utility.channelsio.ConcurrentChannelLineReceiver;
 
 import java.util.concurrent.ThreadFactory;
 
@@ -13,6 +13,7 @@ import java.util.concurrent.ThreadFactory;
 public class ThreadWorker extends Thread {
     private ConcurrentChannelLineReceiver receiver;
     private ChannelLineSender sender;
+
     public ThreadWorker(Runnable target) {
         super(target);
 

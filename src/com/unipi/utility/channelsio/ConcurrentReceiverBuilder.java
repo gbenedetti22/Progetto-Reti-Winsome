@@ -10,17 +10,18 @@ import java.util.concurrent.locks.ReentrantLock;
  * Mediante questa classe è possbile assegnare una propria chunksMap.
  */
 public class ConcurrentReceiverBuilder {
-    private static ConcurrentHashMap<SocketChannel, String> chunksMap = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<SocketChannel, ReentrantLock> locksMap = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<SocketChannel, String> chunksMap = new ConcurrentHashMap<>();
 
     /**
      * Metodo che permette di settare una propria chunksMap<br>
      * <br>
+     *
      * @param chunksMap la nuova chunksMap
      * @throws NullPointerException se chunksMap è null
      */
-    public static void setChunksMap(ConcurrentHashMap<SocketChannel, String> chunksMap) throws NullPointerException{
-        if(chunksMap == null) throw new NullPointerException("la chunksMap non può essere null");
+    public static void setChunksMap(ConcurrentHashMap<SocketChannel, String> chunksMap) throws NullPointerException {
+        if (chunksMap == null) throw new NullPointerException("la chunksMap non può essere null");
 
         ConcurrentReceiverBuilder.chunksMap = chunksMap;
     }

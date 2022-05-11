@@ -26,8 +26,8 @@ import java.util.Base64;
  * <p><br>
  * SocketChannel.read(); -> può restituire "ciao", "ciao mon", "ciao mondo" ecc<br>
  * SocketChannel.read(); -> può generare errori<br>
- *<br>
- *
+ * <br>
+ * <p>
  * Implementation-notes:<br>
  * Questa classe è stata progettata per funzionare con un solo buffer di qualsiasi capacità.<br>
  * Il buffer viene allocato in modalità diretta (vedi {@link ByteBuffer#allocateDirect(int)} per motivi di performance.<br>
@@ -35,9 +35,9 @@ import java.util.Base64;
  * questo comporta un allocazione/deallocazione continua e quindi un overhead da pagare, che può essere molto alto
  * se i dati da ricevere sono molti.<br><br>
  * Facendo uso di un solo buffer, si evita questo overhead ed è possibile usarne solo uno con questi accorgimenti:<br>
- *  - tenere traccia di quanto è stato scritto e di quanto manca ancora da scrivere, durante l invio.<br>
- *  - non adattare il buffer in base ai byte da inviare, ma adattare i byte in base alla capacità del buffer<br>
- *  - rimpiazzare i byte del buffer, scritti con quelli da scrivere<br>
+ * - tenere traccia di quanto è stato scritto e di quanto manca ancora da scrivere, durante l invio.<br>
+ * - non adattare il buffer in base ai byte da inviare, ma adattare i byte in base alla capacità del buffer<br>
+ * - rimpiazzare i byte del buffer, scritti con quelli da scrivere<br>
  * <br>
  * Questa classe è null-safe.
  */

@@ -75,7 +75,7 @@ public class RewardCalculator extends Thread {
 
         out.sendLine(command);
         int size = in.receiveInteger();
-        if (size == 0){
+        if (size == 0) {
             System.out.println("Non ci sono ricompense da calcolare");
             return;
         }
@@ -87,7 +87,7 @@ public class RewardCalculator extends Thread {
             double n2 = 0;
 
             String author = entry.HEADER.getAuthor();
-            HashSet<String> curatori = entry.HEADER.getCuratori();
+            HashSet<String> curatori = entry.HEADER.getCurators();
 
             // Calcolo dei like
             n1 = Math.max(0, entry.LIKES.size() - entry.DISLIKES.size());
@@ -150,7 +150,7 @@ public class RewardCalculator extends Thread {
 
         try {
             timeout = Long.parseLong(time);
-        }catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
             System.err.println("Inserito un valore non valido per il tempo di attesa");
             System.err.println("Verrà usato il valore di default");
             timeout = 1;

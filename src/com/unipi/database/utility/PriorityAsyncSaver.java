@@ -21,24 +21,6 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 
 public class PriorityAsyncSaver extends Thread {
-    private static class Entry implements Comparable<Entry> {
-        Runnable runnable;
-        StandardPriority priority;
-
-        public Entry(Runnable runnable, StandardPriority priority) {
-            this.runnable = runnable;
-            this.priority = priority;
-        }
-
-        @Override
-        public int compareTo(Entry o) {
-            if (o == this) return 0;
-
-            int compare = priority.compareTo(o.priority);
-            return compare == 0 ? 1 : compare;
-        }
-    }
-
     private Database database;
     private char unit;
     private long timeout;
@@ -47,7 +29,6 @@ public class PriorityAsyncSaver extends Thread {
     private ReentrantLock lock;
     private Condition saver;
     private Condition worker;
-
     public PriorityAsyncSaver(String delay) {
         this.queue = new PriorityBlockingQueue<>();
         this.database = DatabaseMain.getDatabase();
@@ -116,7 +97,6 @@ public class PriorityAsyncSaver extends Thread {
         queue.add(new Entry(runnable, priority));
     }
 
-
     private void sleep() throws InterruptedException {
         lock.lock();
         try {
@@ -145,6 +125,24 @@ public class PriorityAsyncSaver extends Thread {
 
             unit = 's';
             timeout = 5;
+        }
+    }
+
+    private static class Entry implements Comparable<Entry> {
+        Runnable runnable;
+        StandardPriority priority;
+
+        public Entry(Runnable runnable, StandardPriority priority) {
+            this.runnable = runnable;
+            this.priority = priority;
+        }
+
+        @Override
+        public int compareTo(Entry o) {
+            if (o == this) return 0;
+
+            int compare = priority.compareTo(o.priority);
+            return compare == 0 ? 1 : compare;
         }
     }
 }

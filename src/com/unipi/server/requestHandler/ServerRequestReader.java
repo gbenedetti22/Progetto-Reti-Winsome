@@ -88,7 +88,7 @@ public class ServerRequestReader implements Callable<String> {
             Console.log(message);
             try {
                 WSRequest request = gson.fromJson(message, WSRequest.class);
-                if(request.getOp() == null) return "NULL REQUEST";
+                if (request.getOp() == null) return "NULL REQUEST";
 
                 s = processRequest(request);
             } catch (JsonSyntaxException e) {
@@ -297,13 +297,13 @@ public class ServerRequestReader implements Callable<String> {
         // Da qui in poi, i parametri ricevuti dal client sono corretti
         String username = (String) params[0];
         String password = (String) params[1];
-        if(username.isBlank() && password.isBlank()) {
+        if (username.isBlank() && password.isBlank()) {
             String s1 = "Username e password non possono essere vuoti";
             response = WSResponse.newErrorResponse(s1);
             return s1;
         }
 
-        if(ServerMain.getUsersLoggedTable().containsValue(username)){
+        if (ServerMain.getUsersLoggedTable().containsValue(username)) {
             String s1 = "Questo utente ha già eseguito il login su un altro dispositivo";
             response = WSResponse.newErrorResponse(s1);
             return s1;

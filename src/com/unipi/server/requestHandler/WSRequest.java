@@ -6,6 +6,7 @@ import java.util.Arrays;
 public class WSRequest implements Serializable {
     private final WS_OPERATIONS op;
     private final Object[] params;
+
     public WSRequest(WS_OPERATIONS op, Object... params) {
         this.op = op;
         this.params = params;
@@ -17,6 +18,14 @@ public class WSRequest implements Serializable {
 
     public Object[] getParams() {
         return params;
+    }
+
+    @Override
+    public String toString() {
+        return "WSRequest{" +
+                "op=" + op +
+                ", params=" + Arrays.toString(params) +
+                '}';
     }
 
     public enum WS_OPERATIONS {
@@ -42,13 +51,5 @@ public class WSRequest implements Serializable {
         PULL_NEW_ENTRIES,
         GET_TRANSACTIONS,
         GET_COMMENTS_FROM_DATE, LOGOUT
-    }
-
-    @Override
-    public String toString() {
-        return "WSRequest{" +
-                "op=" + op +
-                ", params=" + Arrays.toString(params) +
-                '}';
     }
 }

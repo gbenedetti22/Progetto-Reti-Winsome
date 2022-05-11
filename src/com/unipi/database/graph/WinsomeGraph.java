@@ -1,10 +1,8 @@
 package com.unipi.database.graph;
 
-import com.google.common.graph.EndpointPair;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
 import com.unipi.database.Database;
-import com.unipi.database.graph.graphNodes.GroupNode;
 import com.unipi.database.graph.graphNodes.Node;
 
 import java.io.File;

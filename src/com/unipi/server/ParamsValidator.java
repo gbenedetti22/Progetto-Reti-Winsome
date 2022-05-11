@@ -1,7 +1,5 @@
 package com.unipi.server;
 
-import com.unipi.client.mainFrame.MainFrame;
-
 import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -23,7 +21,7 @@ public class ParamsValidator {
             return "Username non valido";
         }
 
-        if(username.contains(" ")) {
+        if (username.contains(" ")) {
             return "Username non valido. Carattere spazio non ammesso";
         }
 
@@ -31,7 +29,7 @@ public class ParamsValidator {
             return "Password non valida";
         }
 
-        if(pass.contains(" ")) {
+        if (pass.contains(" ")) {
             return "La password non può contenere caratteri bianchi";
         }
 
@@ -47,7 +45,7 @@ public class ParamsValidator {
                         "Errore nel campo: " + o;
             }
 
-            if(specialCharacter.matcher(s).find() || s.contains(" ")) {
+            if (specialCharacter.matcher(s).find() || s.contains(" ")) {
                 return "I tags non possono contenere caratteri speciali o spazi bianchi";
             }
         }
@@ -105,7 +103,7 @@ public class ParamsValidator {
             return "Contenuto non valido";
         }
 
-        if(title.isBlank() || content.isBlank()) {
+        if (title.isBlank() || content.isBlank()) {
             return "I campi titolo e contenuto non possono essere vuoti!";
         }
 
@@ -193,7 +191,7 @@ public class ParamsValidator {
     }
 
     public static String checkGetLatestComments(Object[] params) {
-        if(params.length != 2) {
+        if (params.length != 2) {
             return "Parametri passati non validi";
         }
         if (!(params[0] instanceof String idPost)) {
@@ -205,7 +203,7 @@ public class ParamsValidator {
         }
 
         boolean ok = uuidPattern.matcher(idPost).matches();
-        if(!ok) {
+        if (!ok) {
             return "ID Post non valido";
         }
 

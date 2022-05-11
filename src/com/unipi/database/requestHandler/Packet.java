@@ -12,6 +12,7 @@ package com.unipi.database.requestHandler;
 public class Packet {
     private FUNCTION function;
     private Object message;
+
     public Packet(FUNCTION function, Object message) {
         this.function = function;
         this.message = message;

@@ -5,7 +5,6 @@ import com.google.gson.Gson;
 import com.unipi.client.mainFrame.MainFrame;
 import com.unipi.common.Console;
 import com.unipi.common.WinsomeTransaction;
-import com.unipi.server.ServerMain;
 import com.unipi.server.requestHandler.WSRequest;
 import com.unipi.server.requestHandler.WSResponse;
 
@@ -47,7 +46,7 @@ public class MulticastClient extends Thread {
             try {
 //            multicastSocket.joinGroup(InetAddress.getByName(address));
                 multicastSocket.joinGroup(new InetSocketAddress(address, port), networkInterface);
-            }catch (IOException e) {
+            } catch (IOException e) {
                 MainFrame.showErrorMessage("Impossibile ricevere notifiche sullo status delle ricompense");
                 return;
             }
@@ -84,7 +83,7 @@ public class MulticastClient extends Thread {
                     JOptionPane.showMessageDialog(null, "Hai ricevuto dei nuovi Winsome Coins!\n" +
                             "Vai nel tuo profilo e controlla le tue transizioni :)");
 
-                } else if(s.startsWith("REMOVED REWIN")) {
+                } else if (s.startsWith("REMOVED REWIN")) {
 
                     //REMOVED REWIN AUTHOR ID
                     String[] split = s.split(" ", 4);
@@ -92,16 +91,16 @@ public class MulticastClient extends Thread {
                     String id = split[3];
                     Console.log(username);
                     Console.log(id);
-                    if(username.equals(storage.getCurrentUsername())) continue;
+                    if (username.equals(storage.getCurrentUsername())) continue;
 
-                    Pages.HOME_PAGE.removePostIf(p -> p.getRewin()!= null && p.getRewin().equals(username) && p.getID().equals(id));
+                    Pages.HOME_PAGE.removePostIf(p -> p.getRewin() != null && p.getRewin().equals(username) && p.getID().equals(id));
                 } else if (s.startsWith("REMOVED")) {
 
                     //REMOVED USERNAME ID
                     String[] split = s.split(" ", 3);
                     String username = split[1];
                     String id = split[2];
-                    if(username.equals(storage.getCurrentUsername())) continue;
+                    if (username.equals(storage.getCurrentUsername())) continue;
 
                     Pages.HOME_PAGE.removePostIf(p -> p.getID().equals(id));
                     Pages.PROFILE_PAGE.removePostIf(p -> p.getID().equals(id));
