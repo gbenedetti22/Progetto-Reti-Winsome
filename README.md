@@ -1,6 +1,6 @@
 # Winsome - Social Network
 Progetto per il corso di Reti (parte Laboratorio).<br>
-Il progetto consiste nella creazione di un Social Netwrok simil [Steemit](https://steemit.com/) dove le ricompense vengono assegnate mediante valuta WinsomeCoin.<br>
+Il progetto consiste nella creazione di un Social Network simil [Steemit](https://steemit.com/) dove le ricompense vengono assegnate mediante valuta WinsomeCoin.<br>
 E' possibile scaricare gli eseguibili jars da [questo link](https://github.com/gbenedetti22/Progetto-Reti-Winsome/tree/master/jars)<br>
 Per l esecuzione:
 1) Avviare il Database&nbsp;-> java -jar WinsomeDatabase.jar
